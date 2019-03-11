@@ -1,0 +1,4 @@
+*.o
+CMSIS
+test
+
