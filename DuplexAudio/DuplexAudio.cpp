@@ -21,6 +21,11 @@
 
 #include <stdio.h>
 
+DuplexAudio::DuplexAudio()
+{
+    initialise();
+}
+
 /* The code below is based on TestTone in the MATAA project at https://github.com/mbrennwa/mataa 
  * Copyright (C) 2006, 2007, 2008 Matthias S. Brennwald.
  */

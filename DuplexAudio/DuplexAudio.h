@@ -40,9 +40,13 @@ struct paTestData
 class DuplexAudio
 {
     public:
-    paTestData data;
-    PaError initialise();
-    PaError playRecordWait(sample_t* play_buf, sample_t* record_buf, int num_frames);
+        DuplexAudio();
+        paTestData data;
+        PaError initialise();
+        PaError playRecordWait(sample_t* play_buf, sample_t* record_buf, int num_frames);
+        float getSampleRate(){ return data.samplingRate; }
+        unsigned int getNumOutputChannels(){ return data.numOutputDeviceChannels; }
+        unsigned int getNumInputChannels(){ return data.numInputDeviceChannels; }
 };
 
 extern int RecordAndPlayCallback(
