@@ -18,7 +18,7 @@ function y=play_rec(x,Fs)
     x=x(:,1:2);
   endif
   
-  if exist('duplex_audio1.oct','file')
+  if exist('duplex_audio.oct','file')
     y=duplex_audio(x,Fs);
   else
     % Use Octave's player and recorder. Based on code found at
