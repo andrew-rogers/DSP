@@ -38,7 +38,7 @@ DEFUN_DLD (duplex_audio, args, nargout, "Duplex Audio")
     {
       for(int ch=0; ch<nPlaybackChannels;ch++)
       {
-        playback_buf[f*nPlaybackChannels+ch]=playback(0,f);
+        playback_buf[f*nPlaybackChannels+ch]=playback(f,0);
       }
     }
     
