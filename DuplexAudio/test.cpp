@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
     // Create the zero-initialised recording buffer
     num_bytes = num_frames * num_rec_channels * sizeof(sample_t);
-    sample_t* record_buf = (SAMPLE *) calloc( 1, num_bytes );
+    sample_t* record_buf = (sample_t*) calloc( 1, num_bytes );
     if( record_buf == NULL )
     {
         cerr << "ERROR: Could not allocate recording buffer." << endl;

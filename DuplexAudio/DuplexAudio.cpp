@@ -19,148 +19,153 @@
 
 #include "DuplexAudio.h"
 
-#include <stdio.h>
+#include <iostream>
+
+using namespace std;
+
+int PortAudioCallback(
+    const void *inputBuffer,
+    void *outputBuffer,
+    unsigned long framesPerBuffer,
+    const PaStreamCallbackTimeInfo* outTime,
+	PaStreamCallbackFlags statusFlags,
+    void *userData )
+{
+    DuplexAudio* da=(DuplexAudio*)userData;
+    return da->callback(inputBuffer, outputBuffer, framesPerBuffer, outTime, statusFlags);
+}
 
 DuplexAudio::DuplexAudio()
 {
     initialise();
 }
 
-/* The code below is based on TestTone in the MATAA project at https://github.com/mbrennwa/mataa 
- * Copyright (C) 2006, 2007, 2008 Matthias S. Brennwald.
- */
-
 PaError DuplexAudio::initialise()
 {
-    // initialize PortAudio:
+    m_sampleRate = 44100.0;
+
+    // Initialize PortAudio
     PaError err = Pa_Initialize();
     if( err != paNoError ) return err;
-	
-	// get audio devices info:
+
+	// Get input device info
 	int inputDevice = Pa_GetDefaultInputDevice();
-	if (inputDevice < 0)
+	if( inputDevice < 0 )
 	{
-        printf( "ERROR: Pa_GetDefaultInputDevice returned %i\n", inputDevice );
+        cerr << "ERROR: Pa_GetDefaultInputDevice() returned " << inputDevice << "." << endl;
         err = inputDevice;
         return err;
     }
-	const   PaDeviceInfo *inputInfo;
-	inputInfo = Pa_GetDeviceInfo( inputDevice );
-	
+	const PaDeviceInfo* inputInfo( Pa_GetDeviceInfo( inputDevice ) );
+    m_nInputChannels = inputInfo->maxInputChannels;
+    if( m_nInputChannels > 2) m_nInputChannels=2; // Just record two channels
+
+    // Get output device info
 	int outputDevice = Pa_GetDefaultOutputDevice();
 	if (outputDevice < 0)
 	{
-        printf( "ERROR: Pa_GetDefaultOutputDevice returned %i\n", outputDevice );
+        cerr << "ERROR: Pa_GetDefaultOutputDevice() returned " << outputDevice << "." << endl;
         err = outputDevice;
-        return err;;
+        return err;
     }
-	const   PaDeviceInfo *outputInfo;
-	outputInfo = Pa_GetDeviceInfo( outputDevice );
-
-	// Prepare data:
-    data.processedFrames = 0;
-    data.numInputDeviceChannels = inputInfo->maxInputChannels;
-    if( data.numInputDeviceChannels > 2) data.numInputDeviceChannels=2;
-    data.numOutputDeviceChannels = outputInfo->maxOutputChannels;
-	data.samplingRate = 44100.0;
+	const PaDeviceInfo* outputInfo( Pa_GetDeviceInfo( outputDevice ) );
+    m_nOutputChannels = outputInfo->maxOutputChannels;
+    if( m_nOutputChannels > 2) m_nOutputChannels=2; // Just playback two channels
 
     return err;
 }
 
 PaError DuplexAudio::playRecordWait(sample_t* play_buf, sample_t* record_buf, int num_frames)
 {
-    data.outputSamples=play_buf;
-    data.inputSamples=record_buf;
-    data.numFrames=num_frames;
-    PaStream		*stream;
-    // Record and play audio data:	
-    PaError err = Pa_OpenDefaultStream( &stream,
-                                data.numInputDeviceChannels,          // number of input channels
-                                data.numOutputDeviceChannels,         // number of input channels
-								PA_SAMPLE_TYPE,					// sample type
-								data.samplingRate,				// sampling rate
-                                256,							// frames per buffer (use something in the 128-1024 range, or use paFramesPerBufferUnspecified to let portaudio decide)
-								RecordAndPlayCallback,			// the callback function
-                                this );						// pointer to the audio data
-	if( err != paNoError ) 
+    // Setup pointers and counters
+    m_pPlaybackBuffer=play_buf;
+    m_pRecordBuffer=record_buf;
+    m_nFrames=num_frames;
+    m_cFrame = 0;
+
+    // Open the stream
+    PaStream* p_stream;
+    PaError err = Pa_OpenDefaultStream( &p_stream,
+        m_nInputChannels,
+        m_nOutputChannels,
+		PA_SAMPLE_TYPE,
+		m_sampleRate,
+        256, // frames per buffer
+		PortAudioCallback,
+        this );
+	if( err != paNoError )
 	{
-		printf( "ERROR: Pa_OpenDefaultStream returned %i\n", err );
-        return err;
-	}
-									
-    err = Pa_StartStream( stream );
-	if( err != paNoError ) 
-	{
-		printf( "ERROR: Pa_StartStream returned %i\n", err );
+		cerr << "ERROR: Pa_OpenDefaultStream() returned " << err << "." << endl;
         return err;
 	}
 
-    while( Pa_IsStreamActive( stream ) )
-    {
-        Pa_Sleep(1); // sleep while audio I/O
-    }
-    err = Pa_CloseStream( stream );
-	if( err != paNoError ) 
+    // Start streaming
+    err = Pa_StartStream( p_stream );
+	if( err != paNoError )
 	{
-		printf( "ERROR: Pa_CloseStream returned %i\n", err );
+		cerr << "ERROR: Pa_StartStream() returned " << err << "." <<  endl;
+        return err;
+	}
+
+    // Wait for audio to finish
+    while( Pa_IsStreamActive( p_stream ) )
+    {
+        Pa_Sleep(1);
+    }
+
+    // Close the stream
+    err = Pa_CloseStream( p_stream );
+	if( err != paNoError )
+	{
+		cerr << "ERROR: Pa_CloseStream() returned " << err << "." <<  endl;
         return err;
 	}
 
     Pa_Terminate();
 
     return err;
-
 }
 
-int RecordAndPlayCallback(
-                            const void *inputBuffer,
-                            void *outputBuffer,
-                            unsigned long framesPerBuffer,
-                            const PaStreamCallbackTimeInfo* outTime,
-							PaStreamCallbackFlags statusFlags,
-                            void *userData )
+int DuplexAudio::callback(
+    const void *pRecordBuffer,
+    void *pPlaybackBuffer,
+    unsigned long nFramesPerBuffer,
+    const PaStreamCallbackTimeInfo* p_timeInfo,
+    PaStreamCallbackFlags statusFlags )
 {
-    unsigned long iF,iFmax,remainingFrames,iC;
-    DuplexAudio* da=(DuplexAudio*)userData;
-    paTestData* data;
-    int finished;
-    
-/* Cast data passed through stream to our structure. */
-    data = &(da->data);
-    
-/* Handle sound output buffer */
-    SAMPLE *out = (SAMPLE*)outputBuffer;
-    //(void) outTime; /* Prevent unused variable warnings. */
-    //(void) inputBuffer;
-    remainingFrames = data->numFrames - data->processedFrames;
-    if (remainingFrames > framesPerBuffer)
+    // Calculate how many frames to copy
+    int finished = 0;
+    unsigned long nFrames = nFramesPerBuffer;
+    unsigned long remainingFrames = m_nFrames - m_cFrame;
+    if( remainingFrames <= nFramesPerBuffer )
     {
-        iFmax=framesPerBuffer;
-        finished=0;
-    }
-    else
-    { /* last buffer... */
-        iFmax=remainingFrames;
+        nFrames=remainingFrames;
         finished=1;
     }
-		
-    for( iF=0; iF<iFmax; iF++ )
+
+    // Copy playback buffer
+    sample_t *p_dst = (sample_t*)pPlaybackBuffer;
+    for( unsigned long cFrame=0; cFrame<nFrames; cFrame++ )
     {
-        for( iC=0; iC < data->numOutputDeviceChannels; iC++ ) {
-			*out++ = data->outputSamples[(iF+data->processedFrames)*data->numOutputDeviceChannels+iC];
+        for( unsigned long ch=0; ch < m_nOutputChannels; ch++ )
+        {
+			*p_dst++ = m_pPlaybackBuffer[(m_cFrame+cFrame)*m_nOutputChannels+ch];
 		}
     }
 
-/* Handle sound input buffer */
-    SAMPLE *in = (SAMPLE*)inputBuffer;
-    for( iF=0; iF<iFmax; iF++ )
+    // Copy record buffer
+    sample_t *p_src = (sample_t*)pRecordBuffer;
+    for( unsigned long cFrame=0; cFrame<nFrames; cFrame++ )
     {
-        for( iC=0; iC<data->numInputDeviceChannels; iC++ ) data->inputSamples[(iF+data->processedFrames)*data->numInputDeviceChannels+iC]=*in++;
+        for( unsigned long ch=0; ch<m_nInputChannels; ch++ )
+        {
+            m_pRecordBuffer[(m_cFrame+cFrame)*m_nInputChannels+ch] = *p_src++;
+        }
     }
-    
-/* Prepare for next callback-cycle: */    
-    data->processedFrames += iFmax;
 
-return finished;
+    // Update the frame counter
+    m_cFrame += nFrames;
+
+    return finished;
 }
 

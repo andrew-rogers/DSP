@@ -3,10 +3,10 @@ OBJS=test.o DuplexAudio.o
 all: test
 
 test.o: test.cpp DuplexAudio.h
-	g++ -c $< -fpermissive
+	g++ -c $<
 
 DuplexAudio.o: DuplexAudio.cpp DuplexAudio.h
-	g++ -c $< -fpermissive
+	g++ -c $<
 
 test: $(OBJS)
 	g++ $^ -o $@ -lportaudio -lm

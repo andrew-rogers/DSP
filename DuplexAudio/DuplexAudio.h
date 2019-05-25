@@ -22,39 +22,42 @@
 
 #include "portaudio.h"
 
-typedef float		SAMPLE;
 typedef float sample_t;
 #define PA_SAMPLE_TYPE  paFloat32
 
-struct paTestData
-{
-    unsigned long	numFrames;
-    unsigned long	processedFrames;
-    unsigned int	numInputDeviceChannels;
-    unsigned int	numOutputDeviceChannels;
-    float		samplingRate;
-    SAMPLE		*inputSamples;
-    SAMPLE		*outputSamples;
-};
 
 class DuplexAudio
 {
     public:
         DuplexAudio();
-        paTestData data;
         PaError initialise();
         PaError playRecordWait(sample_t* play_buf, sample_t* record_buf, int num_frames);
-        float getSampleRate(){ return data.samplingRate; }
-        unsigned int getNumOutputChannels(){ return data.numOutputDeviceChannels; }
-        unsigned int getNumInputChannels(){ return data.numInputDeviceChannels; }
+        float getSampleRate(){ return m_sampleRate; }
+        unsigned int getNumOutputChannels(){ return m_nOutputChannels; }
+        unsigned int getNumInputChannels(){ return m_nInputChannels; }
+
+        friend int PortAudioCallback(
+            const void *inputBuffer,
+            void *outputBuffer,
+            unsigned long framesPerBuffer,
+            const PaStreamCallbackTimeInfo* outTime,
+			PaStreamCallbackFlags statusFlags,
+            void *userData );
+    private:
+        unsigned long m_nFrames;
+        unsigned long m_cFrame;
+        unsigned int m_nInputChannels;
+        unsigned int m_nOutputChannels;
+        float m_sampleRate;
+        sample_t* m_pRecordBuffer;
+        sample_t* m_pPlaybackBuffer;
+        int callback(
+            const void *pRecordBuffer,
+            void *pPlaybackBuffer,
+            unsigned long nFramesPerBuffer,
+            const PaStreamCallbackTimeInfo* p_timeInfo,
+            PaStreamCallbackFlags statusFlags );
 };
 
-extern int RecordAndPlayCallback(
-                            const void *inputBuffer,
-                            void *outputBuffer,
-                            unsigned long framesPerBuffer,
-                            const PaStreamCallbackTimeInfo* outTime,
-							PaStreamCallbackFlags statusFlags,
-                            void *userData );
 #endif // DUPLEX_AUDIO_H
 
