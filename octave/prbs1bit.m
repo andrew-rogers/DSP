@@ -38,11 +38,14 @@ dither=dither>0.5;
 
 # Analogue RC highpass noise shaping
 pkg load signal
-[b,a]=butter(1,0.1,'high');
+[b,a]=butter(1,0.15,'high');
 hf_noise=filter(b,a,dither);
 
 # Generate an offset signal
-sig=0.05*sin((1:fs)/105)+0.1*sin((1:fs)/250);
+fA=440
+fE=fA*2^(7/12)
+fG=fA*2^(22/12)
+sig=0.05*sin(2*pi*(1:fs)*fE/fs)+0.1*sin(2*pi*(1:fs)*fG/fs);
 sig=0.5+sig; # sig never goes negative
 
 # Adder
@@ -51,6 +54,16 @@ y=sig+hf_noise;
 # threshold
 y=2*(y>0)-1;
 
-
+figure
 bode_plot(y,fs,0,10e3);
+
+figure
+bode_plot(y,fs,100,10000);
+
+# Resample to audio
+fsr=8000;
+[b,a]=butter(4,fsr/fs);
+yr=filter(b,a,y);
+yr=resample_fractional(yr,length(y)*fsr/fs);
+#soundsc(yr,fsr)
 
