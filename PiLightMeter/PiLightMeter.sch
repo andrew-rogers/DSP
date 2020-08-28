@@ -1,0 +1,208 @@
+EESchema Schematic File Version 4
+EELAYER 30 0
+EELAYER END
+$Descr A4 11693 8268
+encoding utf-8
+Sheet 1 1
+Title ""
+Date ""
+Rev ""
+Comp ""
+Comment1 ""
+Comment2 ""
+Comment3 ""
+Comment4 ""
+$EndDescr
+$Comp
+L Sensor_Optical:LDR07 R1
+U 1 1 5F497E34
+P 3300 3450
+F 0 "R1" H 3370 3496 50  0000 L CNN
+F 1 "LDR07" H 3370 3405 50  0000 L CNN
+F 2 "OptoDevice:R_LDR_5.1x4.3mm_P3.4mm_Vertical" V 3475 3450 50  0001 C CNN
+F 3 "http://www.tme.eu/de/Document/f2e3ad76a925811312d226c31da4cd7e/LDR07.pdf" H 3300 3400 50  0001 C CNN
+	1    3300 3450
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R2
+U 1 1 5F498188
+P 3300 3950
+F 0 "R2" H 3370 3996 50  0000 L CNN
+F 1 "4k7" H 3370 3905 50  0000 L CNN
+F 2 "" V 3230 3950 50  0001 C CNN
+F 3 "~" H 3300 3950 50  0001 C CNN
+	1    3300 3950
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3V3 #PWR01
+U 1 1 5F498A1D
+P 3300 3200
+F 0 "#PWR01" H 3300 3050 50  0001 C CNN
+F 1 "+3V3" H 3315 3373 50  0000 C CNN
+F 2 "" H 3300 3200 50  0001 C CNN
+F 3 "" H 3300 3200 50  0001 C CNN
+	1    3300 3200
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND #PWR02
+U 1 1 5F498F6F
+P 3300 4200
+F 0 "#PWR02" H 3300 3950 50  0001 C CNN
+F 1 "GND" H 3305 4027 50  0000 C CNN
+F 2 "" H 3300 4200 50  0001 C CNN
+F 3 "" H 3300 4200 50  0001 C CNN
+	1    3300 4200
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R5
+U 1 1 5F49B550
+P 4550 3450
+F 0 "R5" H 4620 3496 50  0000 L CNN
+F 1 "10k" H 4620 3405 50  0000 L CNN
+F 2 "" V 4480 3450 50  0001 C CNN
+F 3 "~" H 4550 3450 50  0001 C CNN
+	1    4550 3450
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:C C2
+U 1 1 5F49B94F
+P 4800 3200
+F 0 "C2" V 4548 3200 50  0000 C CNN
+F 1 "1n" V 4639 3200 50  0000 C CNN
+F 2 "" H 4838 3050 50  0001 C CNN
+F 3 "~" H 4800 3200 50  0001 C CNN
+	1    4800 3200
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:R R4
+U 1 1 5F49B4C6
+P 4300 3700
+F 0 "R4" V 4093 3700 50  0000 C CNN
+F 1 "10k" V 4184 3700 50  0000 C CNN
+F 2 "" V 4230 3700 50  0001 C CNN
+F 3 "~" H 4300 3700 50  0001 C CNN
+	1    4300 3700
+	0    1    1    0   
+$EndComp
+$Comp
+L Device:C C1
+U 1 1 5F49863E
+P 4050 3950
+F 0 "C1" H 4165 3996 50  0000 L CNN
+F 1 "10n" H 4165 3905 50  0000 L CNN
+F 2 "" H 4088 3800 50  0001 C CNN
+F 3 "~" H 4050 3950 50  0001 C CNN
+	1    4050 3950
+	1    0    0    -1  
+$EndComp
+$Comp
+L Device:R R3
+U 1 1 5F4A7A43
+P 3800 3700
+F 0 "R3" V 3593 3700 50  0000 C CNN
+F 1 "10k" V 3684 3700 50  0000 C CNN
+F 2 "" V 3730 3700 50  0001 C CNN
+F 3 "~" H 3800 3700 50  0001 C CNN
+	1    3800 3700
+	0    1    1    0   
+$EndComp
+$Comp
+L power:GND #PWR03
+U 1 1 5F4AAD5F
+P 4050 4200
+F 0 "#PWR03" H 4050 3950 50  0001 C CNN
+F 1 "GND" H 4055 4027 50  0000 C CNN
+F 2 "" H 4050 4200 50  0001 C CNN
+F 3 "" H 4050 4200 50  0001 C CNN
+	1    4050 4200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3300 3200 3300 3300
+Wire Wire Line
+	3300 3600 3300 3700
+Wire Wire Line
+	3650 3700 3300 3700
+Connection ~ 3300 3700
+Wire Wire Line
+	3300 3700 3300 3800
+Wire Wire Line
+	3950 3700 4050 3700
+Wire Wire Line
+	4050 3800 4050 3700
+Connection ~ 4050 3700
+Wire Wire Line
+	4050 3700 4150 3700
+Wire Wire Line
+	4050 4200 4050 4100
+Wire Wire Line
+	3300 4200 3300 4100
+Wire Wire Line
+	4650 3200 4550 3200
+Wire Wire Line
+	4550 3200 4550 3300
+$Comp
+L power:GND #PWR05
+U 1 1 5F4AE022
+P 7350 4950
+F 0 "#PWR05" H 7350 4700 50  0001 C CNN
+F 1 "GND" H 7355 4777 50  0000 C CNN
+F 2 "" H 7350 4950 50  0001 C CNN
+F 3 "" H 7350 4950 50  0001 C CNN
+	1    7350 4950
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:+3V3 #PWR04
+U 1 1 5F4AEC84
+P 7250 2050
+F 0 "#PWR04" H 7250 1900 50  0001 C CNN
+F 1 "+3V3" H 7265 2223 50  0000 C CNN
+F 2 "" H 7250 2050 50  0001 C CNN
+F 3 "" H 7250 2050 50  0001 C CNN
+	1    7250 2050
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	4550 3600 4550 3700
+Connection ~ 4550 3700
+Wire Wire Line
+	4550 3700 4450 3700
+Text GLabel 6150 3550 0    50   Output ~ 0
+I2S_DOUT
+Text GLabel 6150 3450 0    50   Input ~ 0
+I2S_DIN
+Text GLabel 5050 3700 2    50   Output ~ 0
+I2S_DIN
+Text GLabel 5050 3200 2    50   Input ~ 0
+I2S_DOUT
+Wire Wire Line
+	4950 3200 5050 3200
+Wire Wire Line
+	4550 3700 5050 3700
+$Comp
+L Connector:Raspberry_Pi_2_3 J?
+U 1 1 5F48C205
+P 7050 3550
+F 0 "J?" H 7050 5031 50  0000 C CNN
+F 1 "Raspberry_Pi_2_3" H 7050 4940 50  0000 C CNN
+F 2 "" H 7050 3550 50  0001 C CNN
+F 3 "https://www.raspberrypi.org/documentation/hardware/raspberrypi/schematics/rpi_SCH_3bplus_1p0_reduced.pdf" H 7050 3550 50  0001 C CNN
+	1    7050 3550
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	6150 3450 6250 3450
+Wire Wire Line
+	6150 3550 6250 3550
+Wire Wire Line
+	7250 2250 7250 2050
+Wire Wire Line
+	7350 4950 7350 4850
+$EndSCHEMATC
