@@ -32,15 +32,16 @@
 
 fs=1000000;
 
-# Random binary sequence
+# Repeating short Random binary sequence
 dither=[0 0 1 1 0 1 0 0 0 1 1 0 1 1 1 1 1 1 0 0 1 0 0 0];
 dither=[dither 1-fliplr(dither)];
 dither=repmat(dither,1,ceil(fs/length(dither)));
-dither=dither(1:fs);
+dither=dither(1:fs)-0.5;
 
-# Analogue RC highpass noise shaping
+# Analogue RC lowpass (prevent aliasing of high frequencies)
+# The short repeating PRBS does not have LF, so no need for highpass filter.
 pkg load signal
-[b,a]=butter(1,0.15,'high');
+[b,a]=butter(1,0.25);
 hf_noise=filter(b,a,dither);
 
 # Generate an offset signal
