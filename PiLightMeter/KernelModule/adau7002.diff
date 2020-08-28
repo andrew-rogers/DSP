@@ -1,0 +1,19 @@
+diff -Naur old/adau7002.c new/adau7002.c
+--- old/adau7002.c	2020-08-27 21:07:35.418674459 +0100
++++ new/adau7002.c	2020-08-27 21:04:52.586030534 +0100
+@@ -80,6 +80,15 @@
+ 			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE,
+ 		.sig_bits = 20,
+ 	},
++	.playback = {
++		.stream_name = "Playback",
++		.channels_min = 2,
++		.channels_max = 2,
++		.rates = SNDRV_PCM_RATE_8000_96000,
++		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE |
++			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE |
++			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE,
++	},
+ };
+ 
+ static const struct snd_soc_component_driver adau7002_component_driver = {
