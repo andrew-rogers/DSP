@@ -33,8 +33,10 @@
 fs=1000000;
 
 # Random binary sequence
-dither=rand(1,fs);
-dither=dither>0.5;
+dither=[0 0 1 1 0 1 0 0 0 1 1 0 1 1 1 1 1 1 0 0 1 0 0 0];
+dither=[dither 1-fliplr(dither)];
+dither=repmat(dither,1,ceil(fs/length(dither)));
+dither=dither(1:fs);
 
 # Analogue RC highpass noise shaping
 pkg load signal
