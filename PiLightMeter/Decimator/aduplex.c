@@ -1,5 +1,5 @@
 /*
-    PiLightMeter - ALSA Playback
+    PiLightMeter - ALSA Duplex using non-blocking and poll
     Copyright (C) 2020  Andrew Rogers
 
     This program is free software; you can redistribute it and/or modify
@@ -87,20 +87,19 @@ int playback(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
     
     int nfw = snd_pcm_writei(pcm_handle, ptr, len > 2048 ? 512 : len/4);
     // TODO handle write errors
-    //fprintf(stderr ,"NFW> %d\n", nfw);
     
-    len -= nfw * 4;
-    ptr += nfw * 4;
+    if( nfw > 0 ) {
+        len -= nfw * 4;
+        ptr += nfw * 4;
+    }
     
-    return (nfw);
+    return nfw;
 }
 
 int capture(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
 {
     int nfr = snd_pcm_readi (pcm_handle, buffer, num_frames > 512 ? 512 : num_frames);
     // TODO handle read errors
-
-    //fprintf(stderr ,"NFR> %d\n", nfr);
 
     if (nfr > 0) {
         fwrite(buffer, 1, nfr*4, stdout);
@@ -231,17 +230,41 @@ int do_both()
     char *cbuffer = malloc(num_frames*4); // Each frames has 4 bytes, 2 * 16bit
     
     struct pollfd fds[2];
-    fds[0] = pdev.fd;
-    fds[1] = cdev.fd;
+    fds[0] = cdev.fd;
+    fds[1] = pdev.fd;
 
     int nfw = playback(pdev.handle, pbuffer, num_frames);
     int nfr = capture(cdev.handle, cbuffer, num_frames);
-    
-    while (nfw>0) {
+    int nfw_total = 0;
+    if( nfw > 0 ) nfw_total = nfw;
+    int nfr_total = 0;
+    if( nfr > 0 ) nfr_total = nfr;
+
+    int done=0;
+    while ( !done ) {
         poll(fds, 2, 1000);
-        //fprintf(stderr," revents %d %d \n", fds[0].revents, fds[1].revents);
-        if(fds[0].revents) nfw = playback(pdev.handle, pbuffer, num_frames);
-        if(fds[1].revents) nfr = capture(cdev.handle, cbuffer, num_frames);
+
+        nfr = 0;
+        if(fds[0].revents) nfr = capture(cdev.handle, cbuffer, num_frames);
+        if( nfr > 0 ) nfr_total += nfr;
+
+        nfw = 0;
+        if(fds[1].revents) {
+            nfw = playback(pdev.handle, pbuffer, num_frames);
+            if( nfw > 0 ) nfw_total += nfw;
+            else done=1;
+        }
+    }
+
+    // Capture until we have as many frames as was played
+    int remaining = nfw_total - nfr_total;
+    while( remaining )
+    {
+        poll(fds, 1, 1000);
+
+        nfr = 0;
+        if(fds[0].revents) nfr = capture(cdev.handle, cbuffer, remaining > num_frames ? num_frames : remaining);
+        if( nfr > 0 ) remaining -= nfr;
     }
 
     free(pbuffer);
