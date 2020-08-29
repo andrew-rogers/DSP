@@ -1,6 +1,6 @@
 LDLIBS=-lasound
 
-all: first-stage addup prbs acapture aplay
+all: first-stage addup prbs acapture aplay aduplex
 
 first-stage: first-stage.o
 	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
@@ -17,8 +17,11 @@ acapture: acapture.o
 aplay: aplay.o
 	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
+aduplex: aduplex.o
+	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
+
 clean:
-	rm -f first-stage.o addup.o prbs.o acapture.o aplay.o
-	rm -f first-stage addup prbs acapture aplay
+	rm -f first-stage.o addup.o prbs.o acapture.o aplay.o aduplex.o
+	rm -f first-stage addup prbs acapture aplay aduplex
 
 

@@ -93,7 +93,8 @@ int main (int argc, char *args[])
         // TODO handle write errors
     }
 
-    snd_pcm_close (pcm_handle);
+    snd_pcm_drain(pcm_handle);
+    snd_pcm_close(pcm_handle);
 
     free(buffer);
 
