@@ -15,20 +15,19 @@
 ## <https://www.gnu.org/licenses/>.
 
 # A random binary sequence is used to dither an anologue signal such that it
-# deviates above and below the threshold of a 1-bit ADC. An analogue low-pass
-# filter is used to shape the PRBS into a series of varying amplitude and width
-# peaks. To avoid interference in the low frequency band of the measured signal,
-# a short repeating sequence is used.
+# deviates above and below the threshold of a 1-bit ADC. An analogue high-pass
+# filter is used to shape the noise to the higher frequencies away from the low 
+# sampled signal frequencies.
 #
-#  +---------------+     +---------+
-#  | Random binary |---->| Lowpass |------.
-#  | Sequence gen  |     |  filter |      |
-#  +---------------+     +---------+      v    +-----------+
+#  +---------------+     +----------+
+#  | Random binary |---->| Highpass |-----.
+#  | Sequence gen  |     |  filter  |     |
+#  +---------------+     +----------+     v    +-----------+
 #                                        (+)-->| Threshold |---> bitstream
-#            +---------------+            ^    +-----------+
-#            | Signal source |            |
-#            |   eg. voice   |------------'
-#            +---------------+
+#       +-------------------------+       ^    +-----------+
+#       | Low freq. signal source |       |
+#       |     eg. thermistor      |-------'
+#       +-------------------------+
 #
 
 fs=1000000;
@@ -39,10 +38,9 @@ dither=[dither 1-dither];
 dither=repmat(dither,1,ceil(fs/length(dither)));
 dither=dither(1:fs)-0.5;
 
-# Analogue RC lowpass
-# The short repeating PRBS does not have LF, so no need for highpass filter.
+# Analogue RC highpass filter.
 pkg load signal
-[b,a]=butter(1,0.25);
+[b,a]=butter(1,0.15,'high');
 hf_noise=filter(b,a,dither);
 
 # Generate a sin signal
