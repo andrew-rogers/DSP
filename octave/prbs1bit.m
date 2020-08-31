@@ -31,23 +31,30 @@
 #            +---------------+
 #
 
-fs=1000000;
+fs=96000*32; # I2S rate of Pi
+duration=0.1;
+N=fs*duration; # Number of sample in simulation
 
 # Repeating short Random binary sequence
 dither=[0 0 1 1 0 1 0 0 0 1 1 0 1 1 1 1 1 1 0 0 1 0 0 0];
 dither=[dither 1-dither];
-dither=repmat(dither,1,ceil(fs/length(dither)));
-dither=dither(1:fs)-0.5;
+dither=repmat(dither,1,ceil(N/length(dither)));
+dither=dither(1:N)-0.5;
 
 # Analogue RC lowpass
 # The short repeating PRBS does not have LF, so no need for highpass filter.
+R=3600;
+pF=1e-12; # pico Farad
+C=470*pF;
+fc=1/(2*pi*R*C);
 pkg load signal
-[b,a]=butter(1,0.25);
+fn=fs/2; # Nyquist frequency
+[b,a]=butter(1,fc/fn);
 hf_noise=filter(b,a,dither);
 
 # Generate a sin signal
 f=1000
-sig=0.1*sin(2*pi*(1:fs)*f/fs);
+sig=0.1*sin(2*pi*(1:N)*f/fs);
 
 # Adder
 y=sig+hf_noise;
@@ -65,6 +72,6 @@ bode_plot(y,fs,100,10000);
 fsr=8000;
 [b,a]=butter(4,fsr/fs);
 y=filter(b,a,y);
-yr=resample_fractional(y,length(y)*fsr/fs);
+yr=resample_fractional(y,N*fsr/fs);
 #soundsc(yr,fsr)
 
