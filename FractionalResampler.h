@@ -27,7 +27,7 @@ class FractionalResampler
 public:
 	FractionalResampler(uint32_t M, uint32_t N);
 	uint32_t resample(double* input, double* output, uint32_t num_samples);
-	uint32_t resample1(double* input, uint32_t num_samples, double* output);
+	uint32_t resample(double* input, uint32_t num_samples, double* output);
 
 private:
 	uint32_t M,N;

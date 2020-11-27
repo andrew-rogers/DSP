@@ -56,3 +56,29 @@ uint32_t FractionalResampler::resample(double* input, double* output, uint32_t n
 	return n+1;
 }
 
+uint32_t FractionalResampler::resample(double* input, uint32_t num_samples, double* output)
+{
+	double invM = 1.0L / M;
+	double prev = 0.0L;
+	int cnt = 0;
+	int m = 0;
+	for( int n=0; n<num_samples; n++)
+	{
+		double curr = input[n];
+
+		while(cnt<M)
+		{
+			// Linear interpolation between two adjacent entries in input
+			double frac = cnt * invM;
+			output[m]=prev*(1-frac)+curr*(frac);
+			m++;
+
+			cnt = cnt + N;
+		}
+		cnt=cnt-M;
+
+		prev = curr;
+	}
+	return m;
+}
+

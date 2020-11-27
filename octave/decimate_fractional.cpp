@@ -39,7 +39,8 @@ DEFUN_DLD (decimate_fractional, args, nargout, "Performs a slight reduction of s
 
 		FractionalResampler resampler(M,N);
 
-		resampler.resample(input, output, M);
+		//resampler.resample(input, output, M);
+		resampler.resample(input, N, output);
 
 		retval(0)=ret;
 	}
