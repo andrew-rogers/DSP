@@ -30,9 +30,7 @@ FractionalResampler::FractionalResampler(uint32_t M, uint32_t N)
 uint32_t FractionalResampler::resample(double* input, double* output, uint32_t num_samples)
 {
 	double invM = 1.0L / M;
-	double prev = 0.0L;
 	double curr = input[0];
-	int cnt = 0;
 	int n = 0;
 	for( int m=0; m<num_samples; m++)
 	{
@@ -59,8 +57,6 @@ uint32_t FractionalResampler::resample(double* input, double* output, uint32_t n
 uint32_t FractionalResampler::resample(double* input, uint32_t num_samples, double* output)
 {
 	double invM = 1.0L / M;
-	double prev = 0.0L;
-	int cnt = 0;
 	int m = 0;
 	for( int n=0; n<num_samples; n++)
 	{
