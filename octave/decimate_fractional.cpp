@@ -27,20 +27,33 @@ DEFUN_DLD (decimate_fractional, args, nargout, "Performs a slight reduction of s
 
 	if(nargin >= 2){
 		Matrix x=args(0).matrix_value();
-		int n_y=args(1).matrix_value()(0,0);
-		int n_x=x.numel();
-
-		double m_xy = (double)n_x/n_y; // Decimation factor
+		int M=args(1).matrix_value()(0,0);
+		int N=x.numel();
 
 		// Create the output samples
-		Matrix ret(1,n_y);
-		for( int c_y=0; c_y<n_y; c_y++)
+		Matrix ret(1,M);
+		double invM = 1.0L / M;
+		double prev = 0.0L;
+		double curr = x(0);
+		int cnt = 0;
+		int n = 0;
+		for( int m=0; m<M; m++)
 		{
+
 			// Linear interpolation between two adjacent entries in input
-			double fi_x = (c_y) * m_xy;
-			int i_x = (int)fi_x;
-			double frac = fi_x - i_x;
-			ret(c_y)=x(i_x)*(1-frac)+x(i_x+1)*(frac);
+			double frac = cnt * invM;
+			ret(m)=prev*(1-frac)+curr*(frac);
+
+			cnt = cnt + N;
+
+			while( cnt >= M )
+			{
+				cnt = cnt - M;
+				n ++;
+				prev = curr;
+				curr = x(n);
+			}
+
 		}
 		retval(0)=ret;
 	}
