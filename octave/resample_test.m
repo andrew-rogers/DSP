@@ -1,3 +1,7 @@
+close all
+clear all
+mkoctfile decimate_fractional.cpp ../FractionalResampler.cpp
+
 pkg load signal
 
 f1=500;

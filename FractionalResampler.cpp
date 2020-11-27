@@ -1,6 +1,6 @@
 /*
-    decimate_fractional - Performs a slight reduction of sample rate
-    Copyright (C) 2019  Andrew Rogers
+    Fractional Resampler - Performs a fractional change of sample rate
+    Copyright (C) 2020  Andrew Rogers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,38 +17,42 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "../FractionalResampler.h"
+#include "FractionalResampler.h"
 
-#include <octave/oct.h>
-
-DEFUN_DLD (decimate_fractional, args, nargout, "Performs a slight reduction of sample rate")
+FractionalResampler::FractionalResampler(uint32_t M, uint32_t N)
 {
-	int nargin = args.length ();
+	this->M=M;
+	this->N=N;
+	cnt=0;
+	prev=0.0L;
+}
 
-	octave_value_list retval(1);
-
-	if(nargin >= 2){
-		Matrix x=args(0).matrix_value();
-		int M=args(1).matrix_value()(0,0);
-		int N=x.numel();
-
-		// Create the output samples
-		Matrix ret(1,M);
-		double* output=ret.fortran_vec();
-		double* input=x.fortran_vec();
-
-		FractionalResampler resampler(M,N);
-
-		resampler.resample(input, output, M);
-
-		retval(0)=ret;
-	}
-	else
+uint32_t FractionalResampler::resample(double* input, double* output, uint32_t num_samples)
+{
+	double invM = 1.0L / M;
+	double prev = 0.0L;
+	double curr = input[0];
+	int cnt = 0;
+	int n = 0;
+	for( int m=0; m<num_samples; m++)
 	{
-		Matrix ret(0,0);
-		retval(0)=ret;
+
+		// Linear interpolation between two adjacent entries in input
+		double frac = cnt * invM;
+		output[m]=prev*(1-frac)+curr*(frac);
+
+		cnt = cnt + N;
+
+		while( cnt >= M )
+		{
+			cnt = cnt - M;
+			n ++;
+			prev = curr;
+			curr = input[n];
+		}
+
 	}
 
-	return retval;
+	return n+1;
 }
 
