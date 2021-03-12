@@ -50,7 +50,60 @@
 # Tap number: 0     1     2     |     4     5     6     7     |     9     10
 #                               |                             v
 # Shifted output   X^8 + X^3    '--------------------------->(+)------------->
+#
 # Other shifted outputs can be produced by different selections of two taps.
+# The implementation below generates the G2 non-shifted sequence and stores it
+# in memory. The shifted versions are then procuded by rotating the sequence.
+# The two-tap method is therefore not implemented in practice.
+#
+# Table 2-1 in the SPS spec gives the G2 shift and the first 10 chips of the
+# Gold code for each satellite.
+
+sv_tab='''
+ID	Shift	First 10 chips
+1	5	1440
+2	6	1620
+3	7	1710
+4	8	1744
+5	17	1133
+6	18	1455
+7	139	1131
+8	140	1454
+9	141	1626
+10	251	1504
+11	252	1642
+12	254	1750
+13	255	1764
+14	256	1772
+15	257	1775
+16	258	1776
+17	469	1156
+18	470	1467
+19	471	1633
+20	472	1715
+21	473	1746
+22	474	1763
+23	509	1063
+24	512	1706
+25	513	1743
+26	514	1761
+27	515	1770
+28	516	1774
+29	859	1127
+30	860	1453
+31	861	1625
+32	862	1712
+'''
+
+sv_info = [{'shift':0, 'chips':''}]
+
+def init_sv_info() :
+    for line in sv_tab.split('\n') :
+        parts = line.split()
+        if len(parts) == 3 :
+            sv_info.append({'shift':int(parts[1]), 'chips':parts[2]})
+
+init_sv_info()
 
 def lfsr(poly) :
     reg = [1]*10
@@ -87,6 +140,24 @@ def gold(shift) :
 
     return code
 
-print('1440',gold(5))
-print('1131',gold(139))
+def test() :
+    for sid in range(1,33) :
+        shift = sv_info[sid]['shift']
+        expected_chips = sv_info[sid]['chips']
+
+        # Get first ten chips from Gold generator
+        chips = 0
+        for c in gold(shift)[0:10] :
+            chips = chips * 2 + c;
+        chips = oct(chips)[2:]
+
+        # Compare with expected chips
+        msg = 'passed'
+        if chips != expected_chips :
+            msg = 'failed <---'
+
+        print(sid, expected_chips, chips, msg)
+
+if __name__ == "__main__":
+    test()
 
