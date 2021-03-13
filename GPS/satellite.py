@@ -45,48 +45,68 @@ import fractional_resampler as fr
 #
 #   Convolution in time domain is multiplication in frequency domain.
 #   Correlation is the same as convolution but with one of the input vectors
-#   flipped. The local Gold code signal is flipped and its FFT taken. This can
-#   is stored for later use to avoid recalculation.
+#   flipped. The local Gold code signal is flipped and its FFT taken. This is
+#   stored for later use to avoid recalculation.
 #
 
 class Satellite :
 
     def __init__( self, sid, fs, block_size ) :
         self.sid = sid
+        self.fs = fs
+        self.block_size = block_size
         self.code_phase = 0
         self.doppler = 0
-        shift = ca_code.sv_info[self.sid]['shift']
-        gold = np.repeat( ca_code.gold( shift ), 4)
-        rate = fs / ( len(gold) * 1000.0)
+        self.enabled = True
+        self._genCodeSignals()
 
-        # Calculate number of sequence repeats from blocksize. A sequence is 1ms long.
-        num_blocks = int(np.ceil(block_size * 1000.0 / fs))
-        sig = []
-        for i in range(num_blocks) :
-            sig.extend( 2 * np.array(gold) - 1 )
+    def setBlockSize( self, block_size ) :
+        self.block_size = block_size
+        self._genCodeSignals()
 
-        self.code_sig = fr.resample( sig, rate )[0:block_size]
-        self.code_fft = np.fft.fft(np.flip(self.code_sig))
+    def isEnabled( self ) :
+        return self.enabled
+
+    def setEnabled( self, en ) :
+        self.enabled = en
 
     def xcorr( self, bb_fft ) :
         M = np.multiply( bb_fft, self.code_fft )
         m = np.abs( np.fft.ifft( M ) )
-
         return m
+
+    def getPeak( self, bb_fft ) :
+        m = self.xcorr( bb_fft )
+        i = np.argmax( m )
+        return i,m[i]
+
+    def _genCodeSignals( self ) :
+        shift = ca_code.sv_info[self.sid]['shift']
+        gold = np.repeat( ca_code.gold( shift ), 4)
+        rate = self.fs / ( len(gold) * 1000.0)
+
+        # Calculate number of sequence repeats from blocksize. A sequence is 1ms long.
+        num_blocks = int(np.ceil(self.block_size * 1000.0 / self.fs))
+        sig = []
+        for i in range(num_blocks) :
+            sig.extend( 2 * np.array(gold) - 1 )
+
+        self.code_sig = fr.resample( sig, rate )[0:self.block_size]
+        self.code_fft = np.fft.fft(np.flip(self.code_sig))
 
 def test() :
     MHz = 1e6
     fs = 4 * MHz
     block_size = 1 * int(fs / 1000) # 1 millisecond blocks
     sat7 = Satellite( 7, fs, block_size )
-    
+
     # Create a shifted transmit test signal
     tx_sig = np.roll(sat7.code_sig, 962)
-    
-    # Add noise to give -23dB SNR
-    snr_db=-23
+
+    # Add noise to give -20dB SNR
+    snr_db=-20
     rx_sig = tx_sig + np.random.randn(len(tx_sig)) * 10**(-snr_db/20)
-    
+
     # Do the correlation
     sig_fft = np.fft.fft( rx_sig )
     xcorr = sat7.xcorr( sig_fft )
