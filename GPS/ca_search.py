@@ -33,35 +33,31 @@ import numpy as np
 
 class CASearch :
 
-    def __init__( self, fs, doppler=7500 ) : 
+    def __init__( self, fs, doppler=10000 ) :
         self.fs = fs
         self.doppler = doppler
         self.block_size = 0
+        self.dopplers = []
         self.satellites = []
+        self.peak_matrix = []
+        self.phase_matrix = []
 
     def processBlock( self, bb_IQ ) :
 
         # Check for change of block size
         if len(bb_IQ) != self.block_size :
-            self.block_size = len(bb_IQ)
-
-            # Instantiate satellites if not already instantiated.
-            if len(self.satellites) == 0 :
-                for i in range(1,33) :
-                    sat = Satellite( i, self.fs, self.block_size )
-                    self.satellites.append(sat)
-
-            # Set the block size for satellites
-            for s in self.satellites :
-                s.setBlockSize( self.block_size )
+            self._setBlockSize( len(bb_IQ) )
 
         # Get the FFT of the baseband IQ signal and search over doppler shifts.
         bb_fft = np.fft.fft( bb_IQ )
-        self._search( bb_fft, 0 )
-        doppler = int(np.ceil(self.doppler*float(self.block_size)/self.fs))
-        for d in range(1,doppler+1) :
-            self._search( bb_fft, -d )
-            self._search( bb_fft, d ) 
+        for i,d in enumerate(self.dopplers) :
+            self._search( bb_fft, i )
+
+        # For each satellite find best doppler
+        for s in self.satellites :
+            if s.isEnabled() :
+                index, par = self._findPeakDoppler( s.sid )
+                print(s.sid, par, self.dopplers[index], self.phase_matrix[s.sid, index])
 
     def enable( self, sid, en = True ) :
         self.satellites[sid].setEnabled(en)
@@ -69,16 +65,47 @@ class CASearch :
     def disable( self, sid ) :
         self.enable( sid, False )
 
-    def _search( self, bb_fft, doppler ) :
+    def _findPeakDoppler( self, sid ) :
+        peak = 0
+        index = 0
+        av = 0
+        for i in range(len(self.dopplers)) :
+            pk = self.peak_matrix[sid, i]
+            av = av + pk
+            if pk > peak :
+                peak = pk
+                index = i
+        av = av / len(self.dopplers)
+        return index, peak/av
+
+    def _search( self, bb_fft, doppler_i ) :
 
         # Shift the FFT to compensate doppler shift
-        bb_fft = np.roll( bb_fft, doppler )
+        bb_fft = np.roll( bb_fft, self.dopplers[doppler_i] )
 
         # Loop through enabled Satellite correlation peak detectors
         for s in self.satellites :
             if s.isEnabled() :
                 i,p = s.getPeak( bb_fft )
-                print(doppler, s.sid, i, p)
+                self.peak_matrix[s.sid,doppler_i] = p
+                self.phase_matrix[s.sid,doppler_i] = i
+
+    def _setBlockSize( self, block_size ) :
+        self.block_size = block_size
+        doppler = int(np.ceil(self.doppler*float(self.block_size)/self.fs))
+        self.dopplers = range(-doppler, doppler+1)
+        self.peak_matrix=np.zeros([33,doppler*2+1])
+        self.phase_matrix=np.zeros([33,doppler*2+1])
+
+        # Instantiate satellites if not already instantiated.
+        if len(self.satellites) == 0 :
+            for i in range(1,33) :
+                sat = Satellite( i, self.fs, self.block_size )
+                self.satellites.append(sat)
+
+        # Set the block size for satellites
+        for s in self.satellites :
+            s.setBlockSize( self.block_size )
 
 def test() :
     MHz = 1e6
