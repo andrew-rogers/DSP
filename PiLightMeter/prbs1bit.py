@@ -80,8 +80,8 @@ dither = np.array(dither)
 dither = np.repeat(dither, np.ceil(N/len(dither)))
 dither = dither[0:N]
 
-b,a=signal.butter(2,[0.8,0.9],'bandpass')
-print(b,a)
+#b,a=signal.butter(2,[0.8,0.9],'bandpass')
+b,a=signal.butter(2,0.9,'highpass')
 dither = signal.lfilter(b,a,dither)
 
 ft = np.abs(np.fft.fft(dither))
@@ -90,39 +90,19 @@ plt.plot(f,ft)
 plt.xlabel('Frequency (kHz)')
 plt.show()
 
-'''
-# Analogue RC lowpass
-# The short repeating PRBS does not have LF, so no need for highpass filter.
-R=3600;
-pF=1e-12; # pico Farad
-C=470*pF;
-fc=1/(2*pi*R*C);
-pkg load signal
-fn=fs/2; # Nyquist frequency
-[b,a]=butter(1,fc/fn);
-hf_noise=filter(b,a,dither);
-
-# Generate a sin signal
+# Generate a sin signal with DC offset.
 f=1000
-sig=0.1*sin(2*pi*(1:N)*f/fs);
+sig=0.2+0.1*np.sin(2*np.pi*np.arange(0,N)*f/fs);
 
 # Adder
-y=sig+hf_noise;
+y=sig+dither
 
-# threshold
-y=2*(y>0)-1;
+# threshold or 1-bit ADC
+y=2*(y>0)-1
 
-figure
-bode_plot(y,fs,0,10e3);
-
-figure
-bode_plot(y,fs,100,10000);
-
-# Resample to audio
-fsr=8000;
-[b,a]=butter(4,fsr/fs);
-y=filter(b,a,y);
-yr=resample_fractional(y,N*fsr/fs);
-#soundsc(yr,fsr)
-'''
+ft = np.abs(np.fft.fft(y))
+f = np.arange(0,int(N/300)) * float(fs)/N/1000
+plt.plot(f,ft[0:len(f)])
+plt.xlabel('Frequency (kHz)')
+plt.show()
 
