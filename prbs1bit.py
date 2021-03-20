@@ -44,17 +44,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 
-fs=192000*32; # I2S rate of Pi
+fs=192000*64; # I2S rate of Pi
 duration=0.1;
 N=int(fs*duration); # Number of sample in simulation
-
-'''
-# Repeating short Random binary sequence
-dither=[0 0 1 1 0 1 0 0 0 1 1 0 1 1 1 1 1 1 0 0 1 0 0 0];
-dither=[dither 1-dither];
-dither=repmat(dither,1,ceil(N/length(dither)));
-dither=dither(1:N)-0.5;
-'''
 
 def mls(poly) :
 
@@ -87,11 +79,26 @@ dither = np.array(dither)
 dither = np.repeat(dither, np.ceil(N/len(dither)))
 dither = dither[0:N]
 
-#b,a=signal.butter(2,[0.8,0.9],'bandpass')
-b,a=signal.butter(2,0.15,'highpass')
-dither = signal.lfilter(b,a,dither)
+# Example DC sequence, in practice this could come from a sigma delta loop.
+dc = np.array([1,0,0,0,0,0,1])
+dc = np.repeat(dc, np.ceil(N/len(dc)))
+dc = dc[0:N]
 
-ft = np.abs(np.fft.fft(dither))
+# Create interleaved sequence
+dout = np.zeros(len(dither) + len(dc))
+dout[0::2] = dither
+dout[1::2] = dc
+dout=dout[0:N]
+
+b,a=signal.butter(2,0.15,'highpass')
+din = signal.lfilter(b,a,dout)
+
+b,a=signal.butter(2,0.0001,'lowpass')
+din += signal.lfilter(b,a,dout)
+
+print(f'mean={np.mean(din)}')
+
+ft = np.abs(np.fft.fft(din))
 f = np.arange(0,N) * float(fs)/N/1000
 plt.plot(f,ft)
 plt.xlabel('Frequency (kHz)')
