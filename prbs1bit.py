@@ -17,21 +17,28 @@
 ## <https://www.gnu.org/licenses/>.
 
 # A random binary sequence is used to dither an anologue signal such that it
-# deviates above and below the threshold of a 1-bit ADC. An analogue low-pass
-# filter is used to shape the PRBS into a series of varying amplitude and width
-# peaks. To avoid interference in the low frequency band of the measured signal,
-# a short repeating sequence is used.
+# deviates above and below the threshold of a 1-bit ADC. An analogue high-pass
+# filter is used to shape the PRBS into the high frequency part of the spectrum
+# to avoid interference in the low frequency band of the measured signal.
 #
-#  +---------------+     +---------+
-#  | Random binary |---->| Lowpass |------.
-#  | Sequence gen  |     |  filter |      |
-#  +---------------+     +---------+      v    +-----------+
+#  +---------------+     +----------+
+#  | Random binary |---->| Highpass |-----.
+#  | Sequence gen  |     |  filter  |     |
+#  +---------------+     +----------+     |
+#                                         |
+#  +---------------+     +----------+     v
+#  |   DC offset   |---->| Lowpass  |--->(+)
+#  | Sequence gen  |     |  filter  |     |
+#  +---------------+     +----------+     v    +-----------+
 #                                        (+)-->| Threshold |---> bitstream
 #            +---------------+            ^    +-----------+
 #            | Signal source |            |
 #            |   eg. voice   |------------'
 #            +---------------+
 #
+# DC offset can be adjusted by lowpass filtering a DC offset sequence. The DC
+# offset is effectively a 1-bit DAC. In practice, the PRBS and DC sequence are
+# interleaved
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -81,7 +88,7 @@ dither = np.repeat(dither, np.ceil(N/len(dither)))
 dither = dither[0:N]
 
 #b,a=signal.butter(2,[0.8,0.9],'bandpass')
-b,a=signal.butter(2,0.9,'highpass')
+b,a=signal.butter(2,0.15,'highpass')
 dither = signal.lfilter(b,a,dither)
 
 ft = np.abs(np.fft.fft(dither))
