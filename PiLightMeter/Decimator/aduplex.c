@@ -22,6 +22,9 @@
 #include <alsa/asoundlib.h>
 
 #define PCM_DEVICE "hw:1"
+#define BYTES_PER_FRAME 8 // Each frames has 8 bytes, 2 * 32-bit
+#define FRAMES_PER_PERIOD 1024 // Get poll event every 1024 frames
+#define SAMPLE_RATE 192000 // Each frame 64 bits, 192000*64 = 12,288,000 bps
 
 struct device {
     snd_pcm_t *handle;
@@ -32,9 +35,13 @@ struct device {
 int setup_device(struct device* dev, char* dev_name, snd_pcm_stream_t stream)
 {
     int err=0;
-    unsigned int rate = 96000;
+    unsigned int rate = SAMPLE_RATE;
+
     snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-    snd_pcm_uframes_t period = 512;  // Get poll event every 512 frames
+    if (BYTES_PER_FRAME == 8) {
+        snd_pcm_format_t format = SND_PCM_FORMAT_S32_LE;
+    }
+    snd_pcm_uframes_t period = FRAMES_PER_PERIOD;
 
     if ((err = snd_pcm_open(&(dev->handle), dev_name, stream, SND_PCM_NONBLOCK)) < 0) {
         fprintf (stderr, "Cannot open device %s (%s)\n", dev_name, snd_strerror (err));
@@ -99,17 +106,17 @@ int playback(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
     static char* ptr=0;
     
     if( len==0 ) {
-        len = fread(buffer, 1, num_frames*4, stdin);
+        len = fread(buffer, 1, num_frames*BYTES_PER_FRAME, stdin);
         // TODO handle read errors
         ptr = buffer;
     }
     
-    int nfw = snd_pcm_writei(pcm_handle, ptr, len > 2048 ? 512 : len/4);
+    int nfw = snd_pcm_writei(pcm_handle, ptr, len > FRAMES_PER_PERIOD*BYTES_PER_FRAME ? FRAMES_PER_PERIOD : len/BYTES_PER_FRAME);
     // TODO handle write errors
     
     if( nfw > 0 ) {
-        len -= nfw * 4;
-        ptr += nfw * 4;
+        len -= nfw * BYTES_PER_FRAME;
+        ptr += nfw * BYTES_PER_FRAME;
     }
     
     return nfw;
@@ -117,11 +124,11 @@ int playback(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
 
 int capture(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
 {
-    int nfr = snd_pcm_readi (pcm_handle, buffer, num_frames > 512 ? 512 : num_frames);
+    int nfr = snd_pcm_readi (pcm_handle, buffer, num_frames > FRAMES_PER_PERIOD ? FRAMES_PER_PERIOD : num_frames);
     // TODO handle read errors
 
     if (nfr > 0) {
-        fwrite(buffer, 1, nfr*4, stdout);
+        fwrite(buffer, 1, nfr*BYTES_PER_FRAME, stdout);
         // TODO handle write errors
     }
 
@@ -137,8 +144,8 @@ int do_playback()
 	    return err;
 	}
 
-    int num_frames = 1024;
-    char *buffer = malloc(num_frames*4); // Each frames has 4 bytes, 2 * 16bit
+    int num_frames = 2*FRAMES_PER_PERIOD;
+    char *buffer = malloc(num_frames*BYTES_PER_FRAME);
 
     int nfw = playback(dev.handle, buffer, num_frames);
     while (nfw>0) {
@@ -164,14 +171,14 @@ int do_capture(int N)
 	    return err;
 	}
 
-    int num_frames = 1024;
-    char *buffer = malloc(num_frames*4); // Each frames has 4 bytes, 2 * 16bit
+    int num_frames = 2*FRAMES_PER_PERIOD;
+    char *buffer = malloc(num_frames*BYTES_PER_FRAME);
 
     int n = capture(dev.handle, buffer, num_frames);
     while( n < N ) {
         poll(&dev.fd, 1, 1000);
         int nfr = capture(dev.handle, buffer, num_frames);
-        n = n + nfr*4;
+        n = n + nfr*BYTES_PER_FRAME;
     }
 
     free(buffer);
@@ -196,9 +203,9 @@ int do_both()
 	    return err;
 	}
 
-	int num_frames = 1024;
-    char *cbuffer = malloc(num_frames*4); // Each frames has 4 bytes, 2 * 16bit
-    char *pbuffer = malloc(num_frames*4); // Each frames has 4 bytes, 2 * 16bit
+	int num_frames = 2*FRAMES_PER_PERIOD;
+    char *cbuffer = malloc(num_frames*BYTES_PER_FRAME);
+    char *pbuffer = malloc(num_frames*BYTES_PER_FRAME);
 
     struct pollfd fds[2];
     fds[0] = cdev.fd;
