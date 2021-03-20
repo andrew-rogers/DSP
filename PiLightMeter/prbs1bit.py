@@ -45,6 +45,36 @@ dither=repmat(dither,1,ceil(N/length(dither)));
 dither=dither(1:N)-0.5;
 '''
 
+def mls(poly) :
+
+	# Start with all ones (size determined from poly)
+	reg = poly
+	start = 0
+	while reg > 0 :
+		start = start | reg
+		reg = reg >> 1
+	seq = [0]*start
+
+	done = False
+	reg = start
+	l=0
+	while done == False :
+		if reg & 1 :
+			seq[l] = 1
+			reg = (reg >> 1) ^ poly
+		else :
+			reg = reg >> 1
+		if reg == start :
+			done = True
+		l=l+1
+	return seq[0:l]
+
+dither31=mls(27)
+print(dither31)
+
+dither=mls(76)
+print(dither)
+
 '''
 # Analogue RC lowpass
 # The short repeating PRBS does not have LF, so no need for highpass filter.
