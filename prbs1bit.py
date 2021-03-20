@@ -72,6 +72,18 @@ def mls(poly) :
 		l=l+1
 	return seq[0:l]
 
+def deltaSigma( N, dc ) :
+    dc_seq=np.zeros(N)
+    y = 0.5
+    sigma = 0.0
+    for i in range(N) :
+        sigma = 0.999 * sigma + 0.001 * (y-0.5)
+        y = 0.0
+        if( dc > sigma+0.5 ) :
+            y = 1.0
+        dc_seq[i] = y
+    return dc_seq
+
 dither=mls(77794)
 print(len(dither),2**17)
 
@@ -79,10 +91,8 @@ dither = np.array(dither)
 dither = np.repeat(dither, np.ceil(N/len(dither)))
 dither = dither[0:N]
 
-# Example DC sequence, in practice this could come from a sigma delta loop.
-dc = np.array([1,0,0,0,0,0,1])
-dc = np.repeat(dc, np.ceil(N/len(dc)))
-dc = dc[0:N]
+dc = deltaSigma( N, 0.319 )
+print(f'mean={np.mean(dc)}')
 
 # Create interleaved sequence
 dout = np.zeros(len(dither) + len(dc))
@@ -90,10 +100,10 @@ dout[0::2] = dither
 dout[1::2] = dc
 dout=dout[0:N]
 
-b,a=signal.butter(2,0.15,'highpass')
+b,a=signal.butter(2,0.05,'highpass')
 din = signal.lfilter(b,a,dout)
 
-b,a=signal.butter(2,0.0001,'lowpass')
+b,a=signal.butter(2,100/fs,'lowpass')
 din += signal.lfilter(b,a,dout)
 
 print(f'mean={np.mean(din)}')
@@ -109,12 +119,12 @@ f=1000
 sig=0.2+0.1*np.sin(2*np.pi*np.arange(0,N)*f/fs);
 
 # Adder
-y=sig+dither
+din=sig+din
 
 # threshold or 1-bit ADC
-y=2*(y>0)-1
+din=2*(din>0)-1
 
-ft = np.abs(np.fft.fft(y))
+ft = np.abs(np.fft.fft(din))
 f = np.arange(0,int(N/300)) * float(fs)/N/1000
 plt.plot(f,ft[0:len(f)])
 plt.xlabel('Frequency (kHz)')
