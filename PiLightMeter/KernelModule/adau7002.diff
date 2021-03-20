@@ -1,7 +1,13 @@
-diff -Naur old/adau7002.c new/adau7002.c
---- old/adau7002.c	2020-08-27 21:07:35.418674459 +0100
-+++ new/adau7002.c	2020-08-27 21:04:52.586030534 +0100
-@@ -80,6 +80,15 @@
+--- old/adau7002.c	2021-03-20 09:13:20.676682658 +0000
++++ new/adau7002.c	2021-03-20 09:12:54.426923351 +0000
+@@ -74,12 +74,21 @@
+ 		.stream_name = "Capture",
+ 		.channels_min = 2,
+ 		.channels_max = 2,
+-		.rates = SNDRV_PCM_RATE_8000_96000,
++		.rates = SNDRV_PCM_RATE_8000_192000,
+ 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE |
+ 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE |
  			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE,
  		.sig_bits = 20,
  	},
@@ -9,7 +15,7 @@ diff -Naur old/adau7002.c new/adau7002.c
 +		.stream_name = "Playback",
 +		.channels_min = 2,
 +		.channels_max = 2,
-+		.rates = SNDRV_PCM_RATE_8000_96000,
++		.rates = SNDRV_PCM_RATE_8000_192000,
 +		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S18_3LE |
 +			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE |
 +			SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE,
