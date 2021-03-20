@@ -33,9 +33,13 @@
 #            +---------------+
 #
 
-fs=96000*32; # I2S rate of Pi
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+
+fs=192000*32; # I2S rate of Pi
 duration=0.1;
-N=fs*duration; # Number of sample in simulation
+N=int(fs*duration); # Number of sample in simulation
 
 '''
 # Repeating short Random binary sequence
@@ -69,11 +73,22 @@ def mls(poly) :
 		l=l+1
 	return seq[0:l]
 
-dither31=mls(27)
-print(dither31)
+dither=mls(77794)
+print(len(dither),2**17)
 
-dither=mls(76)
-print(dither)
+dither = np.array(dither)
+dither = np.repeat(dither, np.ceil(N/len(dither)))
+dither = dither[0:N]
+
+b,a=signal.butter(2,[0.8,0.9],'bandpass')
+print(b,a)
+dither = signal.lfilter(b,a,dither)
+
+ft = np.abs(np.fft.fft(dither))
+f = np.arange(0,N) * float(fs)/N/1000
+plt.plot(f,ft)
+plt.xlabel('Frequency (kHz)')
+plt.show()
 
 '''
 # Analogue RC lowpass
