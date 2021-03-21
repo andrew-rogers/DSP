@@ -16,7 +16,7 @@
 ## along with this program; see the file COPYING. If not, see
 ## <https://www.gnu.org/licenses/>.
 
-# A random binary sequence is used to dither an anologue signal such that it
+# A random binary sequence is used to dither an analogue signal such that it
 # deviates above and below the threshold of a 1-bit ADC. An analogue high-pass
 # filter is used to shape the PRBS into the high frequency part of the spectrum
 # to avoid interference in the low frequency band of the measured signal.
