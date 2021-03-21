@@ -9,7 +9,10 @@ sin: sin.o
 	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 aduplex: aduplex.o
-	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
+	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
+	
+aduplex.o: aduplex.cpp
+	$(CXX) -c $<
 
 clean:
 	rm -f int8.o sin.o aduplex.o
