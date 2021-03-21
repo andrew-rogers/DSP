@@ -37,8 +37,9 @@
 #            +---------------+
 #
 # DC offset can be adjusted by lowpass filtering a DC offset sequence. The DC
-# offset is effectively a 1-bit DAC. In practice, the PRBS and DC sequence are
-# interleaved
+# offset is effectively a 1-bit DAC. In practice, the PRBS and DC sequence can
+# be interleaved or produced by a biased random process. See the 1-bit DAC
+# interpolator, int8.c, for an efficient implementation.
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -48,42 +49,6 @@ import subprocess
 fs=192000*64; # I2S rate of Pi
 duration=0.1;
 N=int(fs*duration); # Number of sample in simulation
-
-def mls(poly) :
-
-	# Start with all ones (size determined from poly)
-	reg = poly
-	start = 0
-	while reg > 0 :
-		start = start | reg
-		reg = reg >> 1
-	seq = [0]*start
-
-	done = False
-	reg = start
-	l=0
-	while done == False :
-		if reg & 1 :
-			seq[l] = 1
-			reg = (reg >> 1) ^ poly
-		else :
-			reg = reg >> 1
-		if reg == start :
-			done = True
-		l=l+1
-	return seq[0:l]
-
-def deltaSigma( N, dc ) :
-    dc_seq=np.zeros(N)
-    y = 0.5
-    sigma = 0.0
-    for i in range(N) :
-        sigma = 0.999 * sigma + 0.001 * (y-0.5)
-        y = 0.0
-        if( dc > sigma+0.5 ) :
-            y = 1.0
-        dc_seq[i] = y
-    return dc_seq
 
 def DcPlusPrbs( N, dc ) :
     input=bytearray([int(dc*8)]*int(np.ceil(N/8)))
@@ -96,25 +61,10 @@ def DcPlusPrbs( N, dc ) :
 
     return bitstream[0:N]
 
-dither=mls(77794)
-print(len(dither),2**17)
-
-dither = np.array(dither)
-dither = np.repeat(dither, np.ceil(N/len(dither)))
-dither = dither[0:N]
-
-dc = deltaSigma( N, 0.319 )
-print(f'mean={np.mean(dc)}')
-
-# Create interleaved sequence
-dout = np.zeros(len(dither) + len(dc))
-dout[0::2] = dither
-dout[1::2] = dc
-dout=dout[0:N]
-
 dout = DcPlusPrbs( N, 0.6 )
 print(f'mean={np.mean(dout)}')
 
+# Simulate electronic filters
 b,a=signal.butter(2,0.05,'highpass')
 din = signal.lfilter(b,a,dout)
 
