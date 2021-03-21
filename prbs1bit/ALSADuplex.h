@@ -22,8 +22,6 @@
 
 #include <alsa/asoundlib.h>
 
-
-
 class PCMWriter
 {
 public:
@@ -57,6 +55,7 @@ public:
     int setupPlaybackDevice();
     int playback( char* buffer, int num_frames );
     int capture( char* buffer, int num_frames );
+    int run();
 private:
     device* m_pdev;
     device* m_cdev;

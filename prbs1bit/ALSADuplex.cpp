@@ -146,3 +146,75 @@ int ALSADuplex::capture( char* buffer, int num_frames )
 
     return nfr;
 }
+
+int ALSADuplex::run()
+{
+    int err=0;
+    struct device cdev;
+    struct device pdev;
+    setDevices( pdev, cdev );
+
+	err = setupCaptureDevice();
+	if (err < 0) return err;
+
+	err = setupPlaybackDevice();
+	if (err < 0) return err;
+
+	int num_frames = 2*FRAMES_PER_PERIOD;
+    char *cbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
+    char *pbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
+
+    struct pollfd fds[2];
+    fds[0] = cdev.fd;
+    fds[1] = pdev.fd;
+
+    int nfr_total = 0;
+    int nfr = capture( cbuffer, num_frames );
+    if( nfr > 0 ) nfr_total = nfr;
+
+    int nfw_total = 0;
+    int nfw = playback( pbuffer, num_frames );
+    if( nfw > 0 ) nfw_total = nfw;
+
+    int done=0;
+    while ( !done ) {
+        poll(fds, 2, 1000);
+
+        nfr = 0;
+        if(fds[0].revents) {
+            nfr = capture( cbuffer, num_frames );
+            if( nfr > 0 ) nfr_total += nfr;
+        }
+
+        nfw = 0;
+        if(fds[1].revents) {
+            nfw = playback( pbuffer, num_frames );
+            if( nfw > 0 ) nfw_total += nfw;
+            else done=1;
+        }
+    }
+
+    // Capture until we have as many frames as was played
+    int remaining = nfw_total - nfr_total;
+    while( remaining )
+    {
+        poll(fds, 1, 1000);
+
+        nfr = 0;
+        if(fds[0].revents) {
+            nfr = capture( cbuffer, remaining > num_frames ? num_frames : remaining );
+            if( nfr > 0 ) remaining -= nfr;
+        }
+    }
+
+    free(cbuffer);
+    free(pbuffer);
+
+    snd_pcm_close(cdev.handle);
+    snd_pcm_nonblock(pdev.handle,0);
+    snd_pcm_drain(pdev.handle);
+    snd_pcm_close(pdev.handle);
+
+    return err;
+}
+
