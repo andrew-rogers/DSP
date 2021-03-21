@@ -50,14 +50,28 @@ fs=192000*64; # I2S rate of Pi
 duration=0.1;
 N=int(fs*duration); # Number of sample in simulation
 
+def DcInterpolate( N, dc ) :
+    dc8 = int( dc * 8 )
+    out = []
+    sum = 0.0
+    av = 1.0
+    for i in range(int(np.ceil(N/8))) :
+        y = dc8
+        if( av < dc ):
+            y = dc8 + 1
+        out.append(y)
+        sum += y / 8.0
+        av = sum / (i + 1)
+    return out[0:N]
+
 def DcPlusPrbs( N, dc ) :
-    input=bytearray([int(dc*8)]*int(np.ceil(N/8)))
-    cp=subprocess.run(["./int8"], input=input, capture_output=True)
-    bitstream=[]
+    input = bytearray( DcInterpolate( N, dc ) )
+    cp=subprocess.run( ["./int8"], input = input, capture_output = True )
+    bitstream = []
     for b in cp.stdout :
         for i in range(8) :
             bitstream.append( int(b&1) )
-            b = b>>1
+            b = b >> 1
 
     return bitstream[0:N]
 
