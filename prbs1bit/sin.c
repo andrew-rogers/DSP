@@ -22,6 +22,18 @@
 #include <stdint.h>
 #include <math.h>
 
+int8_t deltaSigma( double x )
+{
+    static int8_t y=0;
+    static double sum=0.0;
+    double delta = x - y;
+    sum = sum + delta;
+    y = sum;
+    if (y>8) y=8;
+    if (y<0) y=0;
+    return y;
+}
+
 int main( int argc, char *args[] )
 {
     uint32_t fs = 768000;
@@ -35,7 +47,7 @@ int main( int argc, char *args[] )
     double pi=acos(-1.0);
     for( int n=0; n<N; n++ ) {
         double theta = 2 * pi * f * n / fs;
-        int8_t val = 4 * sin(theta) + 4.5;
+        int8_t val = deltaSigma(4 * sin(theta) + 4);
         fwrite(&val, 1, 1, stdout);
     }
     return 0;
