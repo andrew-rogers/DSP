@@ -17,11 +17,10 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#include "ALSADuplex.h"
+
 #include <stdio.h>
 #include <poll.h>
-#include <alsa/asoundlib.h>
-
-
 
 /* TODO: Fix 8-bytes frames. Seems that some buffers aren't processed currently
    when 8-byte frames is used on Raspberry Pi. */
@@ -29,7 +28,7 @@
 #define FRAMES_PER_PERIOD 1024 // Get poll event every 1024 frames
 #define SAMPLE_RATE 192000 // Each frame 32 bits, 192000*32 = 6,144,000 bps
 
-class PCMWriter
+class PCMWriterStdin : public PCMWriter
 {
 public:
     int fillBuffer( char *buffer, int num_bytes )
@@ -41,7 +40,7 @@ public:
     }
 };
 
-class PCMReader
+class PCMReaderStdout : public PCMReader
 {
 public:
     void processBuffer( char *buffer, int num_bytes )
@@ -57,8 +56,7 @@ struct device {
     struct pollfd fd;
 };
 
-PCMWriter* g_writer = 0;
-PCMReader* g_reader = 0;
+ALSADuplex* g_duplex = 0;
 
 char g_devname[] = "hw:1";
 #define PCM_DEVICE g_devname
@@ -131,96 +129,9 @@ int setup_device(struct device* dev, char* dev_name, snd_pcm_stream_t stream)
 	return err;
 }
 
-int playback(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
-{
-    static int len=0;
-    static char* ptr=0;
-
-    if( len==0 ) {
-        len = g_writer->fillBuffer( buffer, num_frames*BYTES_PER_FRAME );
-        ptr = buffer;
-    }
-
-    int nfw = snd_pcm_writei(pcm_handle, ptr, len > FRAMES_PER_PERIOD*BYTES_PER_FRAME ? FRAMES_PER_PERIOD : len/BYTES_PER_FRAME);
-    // TODO handle write errors
-    
-    if( nfw > 0 ) {
-        len -= nfw * BYTES_PER_FRAME;
-        ptr += nfw * BYTES_PER_FRAME;
-    }
-
-    return nfw;
-}
-
-int capture(snd_pcm_t *pcm_handle, char* buffer, int num_frames)
-{
-    int nfr = snd_pcm_readi (pcm_handle, buffer, num_frames > FRAMES_PER_PERIOD ? FRAMES_PER_PERIOD : num_frames);
-    // TODO handle read errors
-
-    if (nfr > 0) {
-        g_reader->processBuffer( buffer, nfr*BYTES_PER_FRAME );
-    }
-
-    return nfr;
-}
-
-int do_playback()
-{
-    int err=0;
-	struct device dev;
-	if((err = setup_device(&dev, PCM_DEVICE, SND_PCM_STREAM_PLAYBACK)) < 0) {
-	    fprintf (stderr, "Cannot setup playback device (%s)\n", snd_strerror (err));
-	    return err;
-	}
-
-    int num_frames = 2*FRAMES_PER_PERIOD;
-    char *buffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
-
-    int nfw = playback(dev.handle, buffer, num_frames);
-    while (nfw>0) {
-        poll(&dev.fd, 1, 1000);
-        nfw = playback(dev.handle, buffer, num_frames);
-    }
-
-    snd_pcm_nonblock(dev.handle,0);
-    snd_pcm_drain(dev.handle);
-    snd_pcm_close(dev.handle);
-
-    free(buffer);
-
-    return err;
-}
-
-int do_capture(int N)
-{
-    int err=0;
-    struct device dev;
-    if((err = setup_device(&dev, PCM_DEVICE, SND_PCM_STREAM_CAPTURE)) < 0) {
-	    fprintf (stderr, "Cannot setup capture device (%s)\n", snd_strerror (err));
-	    return err;
-	}
-
-    int num_frames = 2*FRAMES_PER_PERIOD;
-    char *buffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
-
-    int n = capture(dev.handle, buffer, num_frames);
-    while( n < N ) {
-        poll(&dev.fd, 1, 1000);
-        int nfr = capture(dev.handle, buffer, num_frames);
-        n = n + nfr*BYTES_PER_FRAME;
-    }
-
-    free(buffer);
-
-    snd_pcm_close (dev.handle);
-
-    return err;
-}
-
 int do_both()
 {
-    g_writer = new PCMWriter();
-    g_reader = new PCMReader();
+
     int err=0;
     struct device cdev;
     if((err = setup_device(&cdev, PCM_DEVICE, SND_PCM_STREAM_CAPTURE)) < 0) {
@@ -228,11 +139,15 @@ int do_both()
 	    return err;
 	}
 
+	g_duplex->setCHandle( cdev.handle );
+
 	struct device pdev;
 	if((err = setup_device(&pdev, PCM_DEVICE, SND_PCM_STREAM_PLAYBACK)) < 0) {
 	    fprintf (stderr, "Cannot setup playback device (%s)\n", snd_strerror (err));
 	    return err;
 	}
+
+	g_duplex->setPHandle( pdev.handle );
 
 	int num_frames = 2*FRAMES_PER_PERIOD;
     char *cbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
@@ -243,11 +158,11 @@ int do_both()
     fds[1] = pdev.fd;
 
     int nfr_total = 0;
-    int nfr = capture(cdev.handle, cbuffer, num_frames);
+    int nfr = g_duplex->capture( cbuffer, num_frames );
     if( nfr > 0 ) nfr_total = nfr;
 
     int nfw_total = 0;
-    int nfw = playback(pdev.handle, pbuffer, num_frames);
+    int nfw = g_duplex->playback( pbuffer, num_frames );
     if( nfw > 0 ) nfw_total = nfw;
 
     int done=0;
@@ -256,13 +171,14 @@ int do_both()
 
         nfr = 0;
         if(fds[0].revents) {
-            nfr = capture(cdev.handle, cbuffer, num_frames);
+            nfr = g_duplex->capture( cbuffer, num_frames );
             if( nfr > 0 ) nfr_total += nfr;
         }
 
         nfw = 0;
         if(fds[1].revents) {
-            nfw = playback(pdev.handle, pbuffer, num_frames);
+            // nfw = playback(pdev.handle, pbuffer, num_frames);
+            nfw = g_duplex->playback( pbuffer, num_frames );
             if( nfw > 0 ) nfw_total += nfw;
             else done=1;
         }
@@ -276,7 +192,7 @@ int do_both()
 
         nfr = 0;
         if(fds[0].revents) {
-            nfr = capture(cdev.handle, cbuffer, remaining > num_frames ? num_frames : remaining);
+            nfr = g_duplex->capture( cbuffer, remaining > num_frames ? num_frames : remaining );
             if( nfr > 0 ) remaining -= nfr;
         }
     }
@@ -289,28 +205,17 @@ int do_both()
     snd_pcm_drain(pdev.handle);
     snd_pcm_close(pdev.handle);
 
-    delete g_writer;
-    delete g_reader;
-
     return err;
 }
 
 int main (int argc, char *args[])
 {
-    int err=0;
-    if (argc > 1) {
-        if(strcmp(args[1],"both") == 0) {
-            err = do_both();
-        }
-        else {
-            int N=500000;
-            sscanf(args[1], "%d", &N);
-            err = do_capture(N);
-        }
-    }
-    else {
-        err = do_playback();
-    }
-
+    PCMWriter* writer = new PCMWriterStdin();
+    PCMReader* reader = new PCMReaderStdout();
+    g_duplex = new ALSADuplex(*writer, *reader);
+    int err = do_both();
+    delete g_duplex;
+    delete writer;
+    delete reader;
     return err;
 }
