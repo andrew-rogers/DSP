@@ -22,9 +22,12 @@
 #include <alsa/asoundlib.h>
 
 #define PCM_DEVICE "hw:1"
-#define BYTES_PER_FRAME 8 // Each frames has 8 bytes, 2 * 32-bit
+
+/* TODO: Fix 8-bytes frames. Seems that some buffers aren't processed currently
+   when 8-byte frames is used on Raspberry Pi. */
+#define BYTES_PER_FRAME 4 // Each frames has 4 bytes, 2 * 16-bit
 #define FRAMES_PER_PERIOD 1024 // Get poll event every 1024 frames
-#define SAMPLE_RATE 192000 // Each frame 64 bits, 192000*64 = 12,288,000 bps
+#define SAMPLE_RATE 192000 // Each frame 32 bits, 192000*32 = 6,144,000 bps
 
 struct device {
     snd_pcm_t *handle;

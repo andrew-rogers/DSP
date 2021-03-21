@@ -24,7 +24,7 @@
 
 int main( int argc, char *args[] )
 {
-    uint32_t fs = 1536000;
+    uint32_t fs = 768000;
     double f = 1000;
     int N=10*fs;
     double pi=acos(-1.0);
