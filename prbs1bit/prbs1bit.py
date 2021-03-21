@@ -43,6 +43,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
+import subprocess
 
 fs=192000*64; # I2S rate of Pi
 duration=0.1;
@@ -84,6 +85,17 @@ def deltaSigma( N, dc ) :
         dc_seq[i] = y
     return dc_seq
 
+def DcPlusPrbs( N, dc ) :
+    input=bytearray([int(dc*8)]*int(np.ceil(N/8)))
+    cp=subprocess.run(["./int8"], input=input, capture_output=True)
+    bitstream=[]
+    for b in cp.stdout :
+        for i in range(8) :
+            bitstream.append( int(b&1) )
+            b = b>>1
+
+    return bitstream[0:N]
+
 dither=mls(77794)
 print(len(dither),2**17)
 
@@ -99,6 +111,9 @@ dout = np.zeros(len(dither) + len(dc))
 dout[0::2] = dither
 dout[1::2] = dc
 dout=dout[0:N]
+
+dout = DcPlusPrbs( N, 0.6 )
+print(f'mean={np.mean(dout)}')
 
 b,a=signal.butter(2,0.05,'highpass')
 din = signal.lfilter(b,a,dout)
