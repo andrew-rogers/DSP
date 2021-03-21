@@ -22,6 +22,8 @@
 
 #include <alsa/asoundlib.h>
 
+
+
 class PCMWriter
 {
 public:
@@ -34,6 +36,12 @@ public:
     virtual void processBuffer( char *buffer, int num_bytes ) = 0;
 };
 
+struct device {
+    snd_pcm_t *handle;
+    snd_pcm_hw_params_t *hw_params;
+    struct pollfd fd;
+};
+
 class ALSADuplex
 {
 public:
@@ -44,13 +52,14 @@ public:
         len=0;
         ptr=0;
     } 
-    void setPHandle( snd_pcm_t* pcm_handle ){ m_phandle = pcm_handle; }
-    void setCHandle( snd_pcm_t* pcm_handle ){ m_chandle = pcm_handle; }
+    void setDevices( device& pdev, device& cdev){ m_pdev = &pdev; m_cdev = &cdev; }
+    int setupCaptureDevice();
+    int setupPlaybackDevice();
     int playback( char* buffer, int num_frames );
     int capture( char* buffer, int num_frames );
 private:
-    snd_pcm_t* m_phandle;
-    snd_pcm_t* m_chandle;
+    device* m_pdev;
+    device* m_cdev;
     PCMWriter* m_writer;
     PCMReader* m_reader;
     int len;

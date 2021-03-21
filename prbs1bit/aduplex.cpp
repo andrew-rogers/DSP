@@ -50,104 +50,24 @@ public:
     }
 };
 
-struct device {
-    snd_pcm_t *handle;
-    snd_pcm_hw_params_t *hw_params;
-    struct pollfd fd;
-};
-
 ALSADuplex* g_duplex = 0;
 
 char g_devname[] = "hw:1";
 #define PCM_DEVICE g_devname
-
-int setup_device(struct device* dev, char* dev_name, snd_pcm_stream_t stream)
-{
-    int err=0;
-    unsigned int rate = SAMPLE_RATE;
-
-    snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-    if (BYTES_PER_FRAME == 8) {
-        snd_pcm_format_t format = SND_PCM_FORMAT_S32_LE;
-    }
-    snd_pcm_uframes_t period = FRAMES_PER_PERIOD;
-
-    if ((err = snd_pcm_open(&(dev->handle), dev_name, stream, SND_PCM_NONBLOCK)) < 0) {
-        fprintf (stderr, "Cannot open device %s (%s)\n", dev_name, snd_strerror (err));
-        return (err);
-    }
-
-    // Allocate and initialise parameters.
-    snd_pcm_hw_params_alloca(&(dev->hw_params));
-
-    if ((err = snd_pcm_hw_params_any (dev->handle, dev->hw_params)) < 0) {
-        fprintf (stderr, "Canot set parameters (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if ((err = snd_pcm_hw_params_set_access (dev->handle, dev->hw_params, SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
-        fprintf (stderr, "Cannot set interleaved (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if ((err = snd_pcm_hw_params_set_rate_near (dev->handle, dev->hw_params, &rate, 0)) < 0) {
-        fprintf (stderr, "Cannot set rate (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if ((err = snd_pcm_hw_params_set_format (dev->handle, dev->hw_params, format)) < 0) {
-        fprintf (stderr, "Cannot set format (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if ((err = snd_pcm_hw_params_set_channels (dev->handle, dev->hw_params, 2)) < 0) {
-        fprintf (stderr, "Cannot set stereo (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if ((err = snd_pcm_hw_params (dev->handle, dev->hw_params)) < 0) {
-        fprintf (stderr, "Cannot apply parameters (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if((err = snd_pcm_hw_params_set_period_size(dev->handle, dev->hw_params, period, 0)) < 0) {
-        fprintf (stderr, "Cannot set period size (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-	if ((err = snd_pcm_prepare (dev->handle)) < 0) {
-        fprintf (stderr, "Cannot prepare  (%s)\n", snd_strerror (err));
-        return (err);
-    }
-
-    if((err = snd_pcm_poll_descriptors(dev->handle, &(dev->fd), 1)) < 0)
-	{
-		fprintf (stderr, "Cannot get descriptor (%s)\n", snd_strerror (err));
-        return (err);
-	}
-
-	return err;
-}
 
 int do_both()
 {
 
     int err=0;
     struct device cdev;
-    if((err = setup_device(&cdev, PCM_DEVICE, SND_PCM_STREAM_CAPTURE)) < 0) {
-	    fprintf (stderr, "Cannot setup capture device (%s)\n", snd_strerror (err));
-	    return err;
-	}
+    struct device pdev;
+    g_duplex->setDevices( pdev, cdev );
 
-	g_duplex->setCHandle( cdev.handle );
+	err = g_duplex->setupCaptureDevice();
+	if (err < 0) return err;
 
-	struct device pdev;
-	if((err = setup_device(&pdev, PCM_DEVICE, SND_PCM_STREAM_PLAYBACK)) < 0) {
-	    fprintf (stderr, "Cannot setup playback device (%s)\n", snd_strerror (err));
-	    return err;
-	}
-
-	g_duplex->setPHandle( pdev.handle );
+	err = g_duplex->setupPlaybackDevice();
+	if (err < 0) return err;
 
 	int num_frames = 2*FRAMES_PER_PERIOD;
     char *cbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
