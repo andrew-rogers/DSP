@@ -19,9 +19,6 @@
 
 #include "ALSADuplex.h"
 
-char g_devname1[] = "hw:1";
-#define PCM_DEVICE g_devname1
-
 /* TODO: Fix 8-bytes frames. Seems that some buffers aren't processed currently
    when 8-byte frames is used on Raspberry Pi. */
 #define BYTES_PER_FRAME 4 // Each frames has 4 bytes, 2 * 16-bit
@@ -102,7 +99,7 @@ namespace
 int ALSADuplex::setupCaptureDevice()
 {
     int err = 0;
-    if((err = setup_device(m_cdev, PCM_DEVICE, SND_PCM_STREAM_CAPTURE)) < 0) {
+    if((err = setup_device(&m_cdev, m_devname, SND_PCM_STREAM_CAPTURE)) < 0) {
 	    fprintf (stderr, "Cannot setup capture device (%s)\n", snd_strerror (err));
 	}
 	return err;
@@ -111,7 +108,7 @@ int ALSADuplex::setupCaptureDevice()
 int ALSADuplex::setupPlaybackDevice()
 {
     int err = 0;
-    if((err = setup_device(m_pdev, PCM_DEVICE, SND_PCM_STREAM_PLAYBACK)) < 0) {
+    if((err = setup_device(&m_pdev, m_devname, SND_PCM_STREAM_PLAYBACK)) < 0) {
         fprintf (stderr, "Cannot setup playback device (%s)\n", snd_strerror (err));
     }
     return err;
@@ -124,7 +121,7 @@ int ALSADuplex::playback( char* buffer, int num_frames )
         ptr = buffer;
     }
 
-    int nfw = snd_pcm_writei(m_pdev->handle, ptr, len > FRAMES_PER_PERIOD*BYTES_PER_FRAME ? FRAMES_PER_PERIOD : len/BYTES_PER_FRAME);
+    int nfw = snd_pcm_writei(m_pdev.handle, ptr, len > FRAMES_PER_PERIOD*BYTES_PER_FRAME ? FRAMES_PER_PERIOD : len/BYTES_PER_FRAME);
     // TODO handle write errors
     
     if( nfw > 0 ) {
@@ -137,7 +134,7 @@ int ALSADuplex::playback( char* buffer, int num_frames )
 
 int ALSADuplex::capture( char* buffer, int num_frames )
 {
-    int nfr = snd_pcm_readi (m_cdev->handle, buffer, num_frames > FRAMES_PER_PERIOD ? FRAMES_PER_PERIOD : num_frames);
+    int nfr = snd_pcm_readi (m_cdev.handle, buffer, num_frames > FRAMES_PER_PERIOD ? FRAMES_PER_PERIOD : num_frames);
     // TODO handle read errors
 
     if (nfr > 0) {
@@ -150,9 +147,6 @@ int ALSADuplex::capture( char* buffer, int num_frames )
 int ALSADuplex::run()
 {
     int err=0;
-    struct device cdev;
-    struct device pdev;
-    setDevices( pdev, cdev );
 
 	err = setupCaptureDevice();
 	if (err < 0) return err;
@@ -165,8 +159,8 @@ int ALSADuplex::run()
     char *pbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
 
     struct pollfd fds[2];
-    fds[0] = cdev.fd;
-    fds[1] = pdev.fd;
+    fds[0] = m_cdev.fd;
+    fds[1] = m_pdev.fd;
 
     int nfr_total = 0;
     int nfr = capture( cbuffer, num_frames );
@@ -210,10 +204,10 @@ int ALSADuplex::run()
     free(cbuffer);
     free(pbuffer);
 
-    snd_pcm_close(cdev.handle);
-    snd_pcm_nonblock(pdev.handle,0);
-    snd_pcm_drain(pdev.handle);
-    snd_pcm_close(pdev.handle);
+    snd_pcm_close(m_cdev.handle);
+    snd_pcm_nonblock(m_pdev.handle,0);
+    snd_pcm_drain(m_pdev.handle);
+    snd_pcm_close(m_pdev.handle);
 
     return err;
 }

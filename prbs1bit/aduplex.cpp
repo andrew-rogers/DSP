@@ -45,13 +45,11 @@ public:
 
 int main (int argc, char *args[])
 {
-    PCMWriter* writer = new PCMWriterStdin();
-    PCMReader* reader = new PCMReaderStdout();
-    ALSADuplex* duplex = new ALSADuplex(*writer, *reader);
-    int err = duplex->run();
-    delete duplex;
-    delete writer;
-    delete reader;
+    PCMWriterStdin writer;
+    PCMReaderStdout reader;
+    char dev[]="hw:1";
+    ALSADuplex duplex( dev, writer, reader );
+    int err = duplex.run();
     return err;
 }
 

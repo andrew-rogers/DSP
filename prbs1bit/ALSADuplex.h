@@ -43,22 +43,23 @@ struct device {
 class ALSADuplex
 {
 public:
-    ALSADuplex( PCMWriter& writer, PCMReader& reader )
+    ALSADuplex( char* dev, PCMWriter& writer, PCMReader& reader )
     {
+        m_devname = dev;
         m_reader = &reader;
         m_writer = &writer;
         len=0;
         ptr=0;
     } 
-    void setDevices( device& pdev, device& cdev){ m_pdev = &pdev; m_cdev = &cdev; }
+    int run();
+private:
     int setupCaptureDevice();
     int setupPlaybackDevice();
     int playback( char* buffer, int num_frames );
     int capture( char* buffer, int num_frames );
-    int run();
-private:
-    device* m_pdev;
-    device* m_cdev;
+    char* m_devname;
+    device m_pdev;
+    device m_cdev;
     PCMWriter* m_writer;
     PCMReader* m_reader;
     int len;
