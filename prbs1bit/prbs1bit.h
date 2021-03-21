@@ -55,5 +55,27 @@ private:
     uint16_t m_rand280;
 };
 
+class DeltaSigma
+{
+public:
+    DeltaSigma()
+    {
+        m_out= 0.0;
+        m_sum = 0.0;
+    }
+    int8_t sample( float in )
+    {
+        float delta = in - m_out;
+        m_sum = m_sum + delta;
+        m_out = m_sum;
+        if (m_out>8) m_out=8;
+        if (m_out<0) m_out=0;
+        return m_out;
+    }
+private:
+    int8_t m_out;
+    float m_sum;
+};
+
 #endif // PRBS1BIT_H
 

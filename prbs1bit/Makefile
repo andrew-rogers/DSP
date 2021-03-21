@@ -2,9 +2,6 @@ LDLIBS=-lasound -lm
 
 all: int8 sin aduplex dc dec8 int8
 
-sin: sin.o
-	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
-
 dc: dc.o
 	$(CC) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
@@ -12,6 +9,9 @@ dec8: dec8.o prbs1bit.o
 	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 int8: int8.o prbs1bit.o
+	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
+
+sin: sin.o prbs1bit.o
 	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 aduplex: aduplex.o
