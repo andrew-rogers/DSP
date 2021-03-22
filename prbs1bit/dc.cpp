@@ -5,7 +5,7 @@
 
 int main( int argc, char *args[] )
 {
-    uint32_t fs = 768000;
+    uint32_t fs = 1536000;
     int N=10*fs;
     double dc=0.5;
     DeltaSigma delta_sigma;
