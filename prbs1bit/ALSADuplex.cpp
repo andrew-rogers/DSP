@@ -19,32 +19,25 @@
 
 #include "ALSADuplex.h"
 
-/* TODO: Fix 8-bytes frames. Seems that some buffers aren't processed currently
-   when 8-byte frames is used on Raspberry Pi. */
-#define BYTES_PER_FRAME 4 // Each frames has 4 bytes, 2 * 16-bit
-#define FRAMES_PER_PERIOD 1024 // Get poll event every 1024 frames
-#define SAMPLE_RATE 192000 // Each frame 32 bits, 192000*32 = 6,144,000 bps
-
 namespace
 {
+    const int BytesPerFrame = 8;      // Each frames has 8 bytes, 2 * 32-bit
+    const int FramesPerPeriod = 1024;
+    const int SampleRate = 192000;    // Each frame 32 bits, 192000*32 = 6,144,000 bps
+
     int setup_device(struct device* dev, char* dev_name, snd_pcm_stream_t stream)
     {
         int err=0;
-        unsigned int rate = SAMPLE_RATE;
+        unsigned int rate = SampleRate;
+        snd_pcm_format_t format = SND_PCM_FORMAT_S32_LE;
 
-        snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-        if (BYTES_PER_FRAME == 8) {
-            snd_pcm_format_t format = SND_PCM_FORMAT_S32_LE;
-        }
-        snd_pcm_uframes_t period = FRAMES_PER_PERIOD;
+        //snd_pcm_hw_params_t *hw_params;
+        snd_pcm_hw_params_alloca(&(dev->hw_params));
 
-        if ((err = snd_pcm_open(&(dev->handle), dev_name, stream, SND_PCM_NONBLOCK)) < 0) {
+        if ((err = snd_pcm_open(&(dev->handle), dev_name, stream, 0)) < 0) {
             fprintf (stderr, "Cannot open device %s (%s)\n", dev_name, snd_strerror (err));
             return (err);
         }
-
-        // Allocate and initialise parameters.
-        snd_pcm_hw_params_alloca(&(dev->hw_params));
 
         if ((err = snd_pcm_hw_params_any (dev->handle, dev->hw_params)) < 0) {
             fprintf (stderr, "Canot set parameters (%s)\n", snd_strerror (err));
@@ -76,23 +69,12 @@ namespace
             return (err);
         }
 
-        if((err = snd_pcm_hw_params_set_period_size(dev->handle, dev->hw_params, period, 0)) < 0) {
-            fprintf (stderr, "Cannot set period size (%s)\n", snd_strerror (err));
-            return (err);
-        }
-
-	    if ((err = snd_pcm_prepare (dev->handle)) < 0) {
+        if ((err = snd_pcm_prepare (dev->handle)) < 0) {
             fprintf (stderr, "Cannot prepare  (%s)\n", snd_strerror (err));
             return (err);
         }
 
-        if((err = snd_pcm_poll_descriptors(dev->handle, &(dev->fd), 1)) < 0)
-	    {
-		    fprintf (stderr, "Cannot get descriptor (%s)\n", snd_strerror (err));
-            return (err);
-	    }
-
-	    return err;
+        return err;
     }
 }
 
@@ -117,16 +99,17 @@ int ALSADuplex::setupPlaybackDevice()
 int ALSADuplex::playback( char* buffer, int num_frames )
 {
     if( len==0 ) {
-        len = m_writer->fillBuffer( buffer, num_frames*BYTES_PER_FRAME );
+        len = m_writer->fillBuffer( buffer, num_frames*BytesPerFrame );
         ptr = buffer;
+        if ( len <= 0 ) m_done=true;
     }
 
-    int nfw = snd_pcm_writei(m_pdev.handle, ptr, len > FRAMES_PER_PERIOD*BYTES_PER_FRAME ? FRAMES_PER_PERIOD : len/BYTES_PER_FRAME);
+    int nfw = snd_pcm_writei(m_pdev.handle, ptr, len > FramesPerPeriod*BytesPerFrame ? FramesPerPeriod : len/BytesPerFrame);
     // TODO handle write errors
-    
+
     if( nfw > 0 ) {
-        len -= nfw * BYTES_PER_FRAME;
-        ptr += nfw * BYTES_PER_FRAME;
+        len -= nfw * BytesPerFrame;
+        ptr += nfw * BytesPerFrame;
     }
 
     return nfw;
@@ -134,16 +117,19 @@ int ALSADuplex::playback( char* buffer, int num_frames )
 
 int ALSADuplex::capture( char* buffer, int num_frames )
 {
-    int nfr = snd_pcm_readi (m_cdev.handle, buffer, num_frames > FRAMES_PER_PERIOD ? FRAMES_PER_PERIOD : num_frames);
+    int nfr = snd_pcm_readi (m_cdev.handle, buffer, num_frames > FramesPerPeriod ? FramesPerPeriod : num_frames);
     // TODO handle read errors
 
     if (nfr > 0) {
-        m_reader->processBuffer( buffer, nfr*BYTES_PER_FRAME );
+        m_reader->processBuffer( buffer, nfr*BytesPerFrame );
     }
 
     return nfr;
 }
 
+/* Seems we don't need poll and alsa-lib/latency.c optionally uses it
+   https://github.com/alsa-project/alsa-lib/blob/master/test/latency.c
+   It does two playback writes before capture read */
 int ALSADuplex::run()
 {
     int err=0;
@@ -154,51 +140,31 @@ int ALSADuplex::run()
 	err = setupPlaybackDevice();
 	if (err < 0) return err;
 
-	int num_frames = 2*FRAMES_PER_PERIOD;
-    char *cbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
-    char *pbuffer = static_cast<char*>( malloc(num_frames*BYTES_PER_FRAME) );
-
-    struct pollfd fds[2];
-    fds[0] = m_cdev.fd;
-    fds[1] = m_pdev.fd;
+	int num_frames = 2*FramesPerPeriod;
+    char *cbuffer = static_cast<char*>( malloc(num_frames*BytesPerFrame) );
+    char *pbuffer = static_cast<char*>( malloc(num_frames*BytesPerFrame) );
 
     int nfr_total = 0;
-    int nfr = capture( cbuffer, num_frames );
-    if( nfr > 0 ) nfr_total = nfr;
-
     int nfw_total = 0;
-    int nfw = playback( pbuffer, num_frames );
-    if( nfw > 0 ) nfw_total = nfw;
 
-    int done=0;
-    while ( !done ) {
-        poll(fds, 2, 1000);
-
-        nfr = 0;
-        if(fds[0].revents) {
-            nfr = capture( cbuffer, num_frames );
+    int cnt=0;
+    while ( !m_done ) {
+        if (cnt>1) {
+            int nfr = capture( cbuffer, num_frames );
             if( nfr > 0 ) nfr_total += nfr;
         }
 
-        nfw = 0;
-        if(fds[1].revents) {
-            nfw = playback( pbuffer, num_frames );
-            if( nfw > 0 ) nfw_total += nfw;
-            else done=1;
-        }
+        int nfw = playback( pbuffer, num_frames );
+        if( nfw > 0 ) nfw_total += nfw;
+        cnt++;
     }
 
     // Capture until we have as many frames as was played
     int remaining = nfw_total - nfr_total;
     while( remaining )
     {
-        poll(fds, 1, 1000);
-
-        nfr = 0;
-        if(fds[0].revents) {
-            nfr = capture( cbuffer, remaining > num_frames ? num_frames : remaining );
-            if( nfr > 0 ) remaining -= nfr;
-        }
+        int nfr = capture( cbuffer, remaining > num_frames ? num_frames : remaining );
+        if( nfr > 0 ) remaining -= nfr;
     }
 
     free(cbuffer);

@@ -48,6 +48,7 @@ public:
         m_devname = dev;
         m_reader = &reader;
         m_writer = &writer;
+        m_done = false;
         len=0;
         ptr=0;
     } 
@@ -62,6 +63,7 @@ private:
     device m_cdev;
     PCMWriter* m_writer;
     PCMReader* m_reader;
+    bool m_done;
     int len;
     char* ptr;
 };
