@@ -1,0 +1,51 @@
+AW{"type":"awcpp","id":"globals"}
+#include "filter.h"
+#include "cic.h"
+#include "wrappers.h"
+extern AwVector<double> sin5;
+AW{"type":"awcpp","id":"global_defs"}
+AwVector<double> sin5 = sin(linspace(0,10*3.141592654,22));
+
+AW{"type":"mjmd"}
+## Reference sine wave
+
+A 5-cycle sine wave with 22 points is created for the interpolator input. This is plotted below:
+AW{"type":"awcpp"}
+    plot(sin5);
+
+AW{"type":"mjmd"}
+## Investigate Number of CIC stages
+
+A 1-stage CIC interpolator produces a stepped waveform.
+AW{"type":"awcpp"}
+    plot(intv(10000*sin5,16,1));
+
+AW{"type":"mjmd"}
+A 2-stage CIC interpolator produces a ramped waveform.
+AW{"type":"awcpp"}
+    plot(intv(10000*sin5,16,2));
+
+AW{"type":"mjmd"}
+A 3-stage CIC interpolator produces a rounded waveform.
+AW{"type":"awcpp"}
+    plot(intv(10000*sin5,16,3));
+
+AW{"type":"mjmd"}
+## Running the CICInt3
+
+As the 3-stage CIC was found to produce an acceptably clean and smooth output a CICInt3 class was created that specifically implements a 3-stage CIC interpolator.
+It can work with 8-bit or 16-bit input samples.
+
+Run an instance of the CICInt3 class with 16-bit input samples.
+AW{"type":"awcpp"}
+    size_t rate = 1570;
+    auto y = int3(toInt16(32767*sin5),rate);
+    plot(y);
+
+AW{"type":"mjmd"}
+Run an instance of the CICInt3 class with 8-bit input samples.
+AW{"type":"awcpp"}
+    size_t rate = 1570;
+    auto y = int3(toInt8(127*sin5),rate);
+    plot(y);
+
