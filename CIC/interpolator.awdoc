@@ -4,7 +4,7 @@ AW{"type":"awcpp","id":"globals"}
 #include "wrappers.h"
 extern AwVector<double> sin5;
 AW{"type":"awcpp","id":"global_defs"}
-AwVector<double> sin5 = sin(linspace(0,10*3.141592654,22));
+AwVector<double> sin5 = sin(linspace(0,10*PI,22));
 
 AW{"type":"mjmd"}
 ## Reference sine wave
@@ -39,13 +39,15 @@ It can work with 8-bit or 16-bit input samples.
 Run an instance of the CICInt3 class with 16-bit input samples.
 AW{"type":"awcpp"}
     size_t rate = 1570;
-    auto y = int3(toInt16(32767*sin5),rate);
+    AwVector<int16_t> x(32767*sin5);
+    auto y = int3(x,rate);
     plot(y);
 
 AW{"type":"mjmd"}
 Run an instance of the CICInt3 class with 8-bit input samples.
 AW{"type":"awcpp"}
     size_t rate = 1570;
-    auto y = int3(toInt8(127*sin5),rate);
+    AwVector<int8_t> x(127*sin5);
+    auto y = int3(x,rate);
     plot(y);
 
