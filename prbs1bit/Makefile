@@ -1,11 +1,14 @@
 LDLIBS=-lasound -lm
 
-all: int8 sin aduplex dc dec8 int8 duplex8
+all: dec8 int8 interpolate sin dc aduplex duplex8
 
 dec8: dec8.o prbs1bit.o
 	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 int8: int8.o prbs1bit.o
+	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
+
+interpolate: interpolate.o prbs1bit.o
 	$(CXX) $(LDFLAGS) $(LDLIBS) $^ -o $@
 
 sin: sin.o prbs1bit.o
@@ -30,6 +33,6 @@ ALSADuplex.o: ALSADuplex.cpp
 	$(CXX) -c $<
 
 clean:
-	rm -f int8.o sin.o aduplex.o dc.o prbs1bit.o dec8.o int8.o ALSADuplex.o duplex8.o
-	rm -f int8 sin aduplex dc dec8 int8 duplex8
+	rm -f int8.o interpolate.o sin.o aduplex.o dc.o prbs1bit.o dec8.o int8.o ALSADuplex.o duplex8.o
+	rm -f int8 interpolate sin aduplex dc dec8 int8 duplex8
 

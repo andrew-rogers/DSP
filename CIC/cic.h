@@ -17,6 +17,8 @@
     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
+#include <cstddef>
+
 template <typename sample_t>
 void interpolate(const sample_t* in, sample_t* out, size_t len, size_t rate)
 {
