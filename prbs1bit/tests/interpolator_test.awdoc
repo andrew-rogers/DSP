@@ -1,0 +1,11 @@
+AW{"type":"awcpp","id":"global_defs"}
+
+
+AW{"type":"awcpp"}
+    auto x = sin(linspace(0,10*PI,101));
+    AwVector<uint8_t> vec(127.5*x+128);
+    vec.save("sin5.bin");
+    plot(vec);
+    system("cat sin5.bin | ../../interpolate > int_out.bin");
+    vec.load("int_out.bin");
+    plot(vec);
