@@ -40,59 +40,6 @@ struct device {
     struct pollfd fd;
 };
 
-class BufferQueue
-{
-public:
-    typedef char* ptr_t;
-
-    BufferQueue( size_t bytes_per_buffer, size_t num_buffers )
-    {
-        m_top = num_buffers;
-        m_rd = 0;
-        m_wr = 0;
-        m_buffers = new ptr_t[num_buffers];
-        for( size_t i=0; i<num_buffers; i++) m_buffers[i]=(ptr_t) new char[bytes_per_buffer];
-    }
-
-    ~BufferQueue()
-    {
-        for( size_t i=0; i<m_top; i++) delete[] m_buffers[i];
-        delete[] m_buffers;
-    }
-
-    ptr_t acquireWrite()
-    {
-        return m_buffers[m_wr];
-    }
-
-    bool commit()
-    {
-        size_t next = m_wr+1;
-        if (next == m_top) next=0;
-        if (next == m_rd) return false; // Full
-        m_wr = next;
-    }
-
-    ptr_t acquireRead()
-    {
-        if (m_rd == m_wr) return NULL; // Empty
-        return m_buffers[m_rd];
-    }
-
-    bool release()
-    {
-        if (m_rd == m_wr) return false; // Empty
-        m_rd++;
-        if (m_rd = m_top) m_rd=0;
-    }
-
-private:
-    size_t m_top;
-    size_t m_rd;
-    size_t m_wr;
-    ptr_t* m_buffers;
-};
-
 class ALSADuplex
 {
 public:
