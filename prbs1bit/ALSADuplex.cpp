@@ -23,7 +23,7 @@ namespace
 {
     const int BytesPerFrame = 8;      // Each frames has 8 bytes, 2 * 32-bit
     const int FramesPerPeriod = 1024;
-    const int SampleRate = 192000;    // Each frame 32 bits, 192000*32 = 6,144,000 bps
+    const int SampleRate = 192000;    // Each frame 64 bits, 192000*64 = 12,288,000 bps
 
     int setup_device(struct device* dev, char* dev_name, snd_pcm_stream_t stream)
     {
@@ -112,6 +112,11 @@ int ALSADuplex::playback( char* buffer, int num_frames )
         ptr += nfw * BytesPerFrame;
     }
 
+    if( nfw < 0 ) {
+        fprintf (stderr, "Playback error: (%s)\n", snd_strerror (nfw));
+        m_abort = true; // Abort duplex loop.
+    }
+
     return nfw;
 }
 
@@ -124,6 +129,11 @@ int ALSADuplex::capture( char* buffer, int num_frames )
         m_reader->processBuffer( buffer, nfr*BytesPerFrame );
     }
 
+    if( nfr < 0 && nfr!=-EAGAIN ) {
+        fprintf (stderr, "Capture error: (%s)\n", snd_strerror (nfr));
+        m_abort = true; // Abort duplex loop.
+    }
+
     return nfr;
 }
 
@@ -132,6 +142,8 @@ int ALSADuplex::capture( char* buffer, int num_frames )
    It does two playback writes before capture read */
 int ALSADuplex::run()
 {
+    const int PlaybackPrefill = 2;
+
     int err=0;
 
 	err = setupCaptureDevice();
@@ -144,24 +156,25 @@ int ALSADuplex::run()
     char *cbuffer = static_cast<char*>( malloc(num_frames*BytesPerFrame) );
     char *pbuffer = static_cast<char*>( malloc(num_frames*BytesPerFrame) );
 
-    int nfr_total = 0;
-    int nfw_total = 0;
+    int remaining=0;
 
-    int cnt=0;
-    while ( !m_done ) {
-        if (cnt>1) {
-            int nfr = capture( cbuffer, num_frames );
-            if( nfr > 0 ) nfr_total += nfr;
-        }
+    // Prefill the playback buffer
+    for (int i=0; i<PlaybackPrefill; i++) {
+        int nfw = playback( pbuffer, num_frames );
+        if( nfw > 0 ) remaining += nfw;
+    }
+
+    // Main duplex loop
+    while ( !m_done && !m_abort) {
+        int nfr = capture( cbuffer, num_frames );
+        if( nfr > 0 ) remaining -= nfr;
 
         int nfw = playback( pbuffer, num_frames );
-        if( nfw > 0 ) nfw_total += nfw;
-        cnt++;
+        if( nfw > 0 ) remaining += nfw;
     }
 
     // Capture until we have as many frames as was played
-    int remaining = nfw_total - nfr_total;
-    while( remaining )
+    while( remaining > 0 && !m_abort)
     {
         int nfr = capture( cbuffer, remaining > num_frames ? num_frames : remaining );
         if( nfr > 0 ) remaining -= nfr;

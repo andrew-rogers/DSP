@@ -49,6 +49,7 @@ public:
         m_reader = &reader;
         m_writer = &writer;
         m_done = false;
+        m_abort = false;
         len=0;
         ptr=0;
     } 
@@ -63,7 +64,8 @@ private:
     device m_cdev;
     PCMWriter* m_writer;
     PCMReader* m_reader;
-    bool m_done;
+    bool m_done;   // Set when playback has completed.
+    bool m_abort;  // Set when buffer underruns / overruns.
     int len;
     char* ptr;
 };
