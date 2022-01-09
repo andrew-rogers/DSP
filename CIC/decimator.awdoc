@@ -1,0 +1,32 @@
+AW{"type":"awcpp","id":"globals"}
+#include "filter.h"
+#include "cic.h"
+#include "wrappers.h"
+extern AwVector<double> sin5;
+AW{"type":"awcpp","id":"global_defs"}
+AwVector<double> sin5 = sin(linspace(0,10*PI,352));
+
+AW{"type":"mjmd"}
+## Reference sine wave
+
+A 5-cycle sine wave with 33,000 points is created for the decimator input. This is plotted below:
+AW{"type":"awcpp"}
+    plot(sin5);
+
+AW{"type":"mjmd"}
+## Investigate Number of CIC stages
+
+A 1-stage CIC decimator produces a gain equal to the rate. For rate=16, gain=16.
+AW{"type":"awcpp"}
+    plot(decv(10*sin5,16,1));
+
+AW{"type":"mjmd"}
+A 2-stage CIC decimator produces a gain equal to the rate squared. For rate=16, gain=256.
+AW{"type":"awcpp"}
+    plot(decv(10*sin5,16,2));
+
+AW{"type":"mjmd"}
+A 3-stage CIC decimator produces a gain equal to the rate cubed. For rate=16, gain=4096.
+AW{"type":"awcpp"}
+    plot(decv(10*sin5,16,3));
+

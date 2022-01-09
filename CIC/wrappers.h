@@ -14,7 +14,7 @@ AwVector<int32_t> int3(const AwVector<sample_t>& in, size_t rate)
         cic((sample_t*)&in[i], &y[i*rate], block_size);
     }
     cic((sample_t*)&in[i], &y[i*rate], len-i);
-    
+
     return y;
 }
 
@@ -24,7 +24,16 @@ AwVector<int32_t> intv(const vec_t& in, size_t rate, size_t order)
     AwVector<int32_t> x(in);
     AwVector<int32_t> y(in.size()*rate);
     up(&x[0], &y[0], x.size(), rate, order);
-    
+
     return y;
 }
 
+template <class vec_t>
+AwVector<int32_t> decv(const vec_t& in, size_t rate, size_t order)
+{
+    AwVector<int32_t> x(in);
+    AwVector<int32_t> y(in.size()/rate);
+    down(&x[0], &y[0], y.size(), rate, order);
+
+    return y;
+}
