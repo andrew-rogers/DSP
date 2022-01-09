@@ -181,4 +181,101 @@ private:
     size_t m_in_shift, m_s1, m_s2;
 };
 
+template <typename Tin>
+class CICDec3
+{
+public:
+    CICDec3(size_t rate) : m_rate(rate),
+    m_x0(0), m_x1(0),m_x2(0),
+    m_y0(0), m_y1(0),m_y2(0),
+    m_in_shift(16-sizeof(Tin)*8), m_s0(0), m_s1(0), m_s2(0)
+    {
+        // integrator |                  output amplitude
+        // -----------|---------------------------------------------------
+        //   first    | rate times higher than x(n)
+        //   second   | rate * rate times higher than x(n)
+        //   third    | rate * rate * rate times higher than x(n)
+
+        // The fisrt integrator overflows when rate is greater than 32768
+        if( m_rate > 32768 )
+        {
+            size_t growth = log2(m_rate-1) + 1;
+            m_s0 = growth - 15;
+        }
+
+        // The second integrator overflows when rate is greater than 256
+        if( m_rate > 256 )
+        {
+            size_t growth = log2((int64_t)m_rate * m_rate - 1) + 1;
+            m_s1 = growth - m_s0 - 16;
+        }
+
+        // The third integrator overflows when rate is greater than 32
+        if( m_rate > 32 )
+        {
+            size_t growth = log2((int64_t)m_rate * m_rate * m_rate - 1) + 1;
+            m_s2 = growth - m_s1 - m_s0 - 15;
+        }
+    }
+
+    int32_t gain()
+    {
+        return ((int64_t)m_rate * m_rate * m_rate) << m_in_shift >> m_s0 >> m_s1 >> m_s2;
+    }
+
+    void operator()(Tin* in, int32_t* out, size_t len)
+    {
+        samples(in, out, len);
+    }
+
+    void samples(const Tin* in, int32_t* out, size_t len)
+    {
+        int32_t y;
+        int32_t sum;
+        for( size_t i=0; i<len; i++)
+        {
+            // Run the integrator stages at the higher rate.
+            for( size_t j=0; j<m_rate; j++)
+            {
+                sum = ( ( in[i*m_rate+j] <<  m_in_shift ) >> m_s0 ) + m_x0;
+                m_x0 = sum;
+
+                sum = (sum>>m_s1) + m_x1;
+                m_x1 = sum;
+
+                sum = (sum>>m_s2) + m_x2;
+                m_x2 = sum;
+            }
+
+            // Comb stages.
+            y = sum;
+            sum = y - m_y0;
+            m_y0 = y;
+
+            y = sum;
+            sum = y - m_y1;
+            m_y1 = y;
+
+            y = sum;
+            sum = y - m_y2;
+            m_y2 = y;
+
+            out[i] = sum;
+        }
+    }
+
+    static size_t log2(int64_t x)
+    {
+        size_t y=0;
+        for( ; x>1 ; x=x>>1 ) y++;
+        return y;
+    }
+
+private:
+    size_t m_rate;
+    int32_t m_x0, m_x1, m_x2;
+    int32_t m_y0, m_y1, m_y2;
+    size_t m_in_shift, m_s0, m_s1, m_s2;
+};
+
 

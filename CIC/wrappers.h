@@ -3,6 +3,7 @@ AwVector<int32_t> int3(const AwVector<sample_t>& in, size_t rate)
 {
     AwVector<int32_t> y(in.size()*rate);
 
+    // Size and block-size of input
     const size_t len = in.size();
     const size_t block_size = 5;
 
@@ -17,6 +18,28 @@ AwVector<int32_t> int3(const AwVector<sample_t>& in, size_t rate)
 
     return y;
 }
+
+template <typename sample_t>
+AwVector<int32_t> dec3(const AwVector<sample_t>& in, size_t rate)
+{
+    AwVector<int32_t> y(in.size()/rate);
+
+    // Size and block-size of output
+    const size_t len = y.size();
+    const size_t block_size = 5;
+
+    CICDec3<sample_t> cic(rate);
+
+    size_t i;
+    for(i=0; i<=len-block_size; i+= block_size)
+    {
+        cic((sample_t*)&in[i*rate], &y[i], block_size);
+    }
+    cic((sample_t*)&in[i*rate], &y[i], len-i);
+
+    return y;
+}
+
 
 template <class vec_t>
 AwVector<int32_t> intv(const vec_t& in, size_t rate, size_t order)

@@ -9,7 +9,7 @@ AwVector<double> sin5 = sin(linspace(0,10*PI,352));
 AW{"type":"mjmd"}
 ## Reference sine wave
 
-A 5-cycle sine wave with 33,000 points is created for the decimator input. This is plotted below:
+A 5-cycle sine wave with 352 points is created for the decimator input. This is plotted below:
 AW{"type":"awcpp"}
     plot(sin5);
 
@@ -30,3 +30,23 @@ A 3-stage CIC decimator produces a gain equal to the rate cubed. For rate=16, ga
 AW{"type":"awcpp"}
     plot(decv(10*sin5,16,3));
 
+AW{"type":"mjmd"}
+## Running the CICDec3
+
+CICDec3 class was created that specifically implements a 3-stage CIC Decimator.
+It can work with 8-bit or 16-bit input samples.
+
+Run an instance of the CICDec3 class with 16-bit input samples.
+AW{"type":"awcpp"}
+    size_t rate = 4;
+    AwVector<int16_t> x(32767*sin5);
+    auto y = dec3(x,rate);
+    plot(y);
+
+AW{"type":"mjmd"}
+Run an instance of the CICDec3 class with 8-bit input samples.
+AW{"type":"awcpp"}
+    size_t rate = 4;
+    AwVector<int8_t> x(127*sin5);
+    auto y = dec3(x,rate);
+    plot(y);
