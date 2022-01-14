@@ -1,6 +1,6 @@
 /*
     ALSA Duplex Class
-    Copyright (C) 2021  Andrew Rogers
+    Copyright (C) 2021,2022  Andrew Rogers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,16 +22,62 @@
 
 #include <alsa/asoundlib.h>
 
-class PCMWriter
+class Buffer
 {
 public:
-    virtual int fillBuffer( char *buffer, int num_bytes ) = 0;
+    Buffer( size_t capacity )
+    {
+        m_capacity = capacity;
+        m_size = 0;
+        m_buffer = new char[m_capacity];
+        m_alloc = m_buffer;
+    }
+
+    Buffer( char* buffer, size_t capacity )
+    {
+        m_capacity = capacity;
+        m_size = 0;
+        m_buffer = buffer;
+        m_alloc = 0;
+    }
+
+    ~Buffer()
+    {
+        if (m_alloc) delete[] m_alloc;
+    }
+
+    char& operator[]( size_t index)
+    {
+        return m_buffer[index];
+    }
+
+    size_t getCapacity()
+    {
+        return m_capacity;
+    }
+
+    void setSize( size_t size)
+    {
+        m_size = size;
+    }
+
+    size_t getSize()
+    {
+        return m_size;
+    }
+
+private:
+    size_t m_capacity;
+    size_t m_size;
+    char *m_buffer;
+    char *m_alloc;
 };
 
-class PCMReader
+class BufferProvider
 {
 public:
-    virtual void processBuffer( char *buffer, int num_bytes ) = 0;
+    virtual Buffer* getBuffer() = 0;
+    virtual void release( Buffer* buf ) = 0;
 };
 
 struct device {
@@ -43,31 +89,26 @@ struct device {
 class ALSADuplex
 {
 public:
-    ALSADuplex( char* dev, PCMWriter& writer, PCMReader& reader )
-    {
-        m_devname = dev;
-        m_reader = &reader;
-        m_writer = &writer;
-        m_done = false;
-        m_abort = false;
-        len=0;
-        ptr=0;
-    } 
-    int run();
+    ALSADuplex( char* dev, BufferProvider& writer, BufferProvider& reader );
+    ~ALSADuplex();
+    int run(int playback_prefill);
 private:
     int setupCaptureDevice();
     int setupPlaybackDevice();
-    int playback( char* buffer, int num_frames );
-    int capture( char* buffer, int num_frames );
+    int playback();
+    int capture( int num_frames );
     char* m_devname;
     device m_pdev;
     device m_cdev;
-    PCMWriter* m_writer;
-    PCMReader* m_reader;
+    BufferProvider* m_writer;
+    BufferProvider* m_reader;
     bool m_done;   // Set when playback has completed.
     bool m_abort;  // Set when buffer underruns / overruns.
     int len;
     char* ptr;
+    size_t m_frames_per_block;
+    Buffer* m_cbuffer;
+    Buffer* m_pbuffer;
 };
 
 #endif // ALSA_DUPLEX_H

@@ -1,6 +1,6 @@
 /*
     PiLightMeter - ALSA Duplex using non-blocking and poll
-    Copyright (C) 2020  Andrew Rogers
+    Copyright (C) 2020,2022  Andrew Rogers
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -21,35 +21,73 @@
 
 #include <stdio.h>
 
-class PCMWriterStdin : public PCMWriter
+class BufferProducerStdin : public BufferProvider
 {
 public:
-    int fillBuffer( char *buffer, int num_bytes )
+    BufferProducerStdin()
     {
-        int len = fread(buffer, 1, num_bytes, stdin);
+        m_buf = 0;
+    }
+
+    ~BufferProducerStdin()
+    {
+        if (m_buf) delete m_buf;
+    }
+
+    virtual Buffer* getBuffer()
+    {
+        if (m_buf==0) m_buf = new Buffer(16384);
+        int len = fread(&(*m_buf)[0], 1, 16384, stdin);
         // TODO handle read errors
 
-        return len;
+        m_buf->setSize(len);
+
+        return m_buf;
     }
+
+    virtual void release( Buffer* buf )
+    {
+    }
+
+private:
+    Buffer* m_buf;
 };
 
-class PCMReaderStdout : public PCMReader
+class BufferConsumerStdout : public BufferProvider
 {
 public:
-    void processBuffer( char *buffer, int num_bytes )
+    BufferConsumerStdout()
     {
-        fwrite(buffer, 1, num_bytes, stdout);
+        m_buf = new Buffer(16384);
+    }
+
+    ~BufferConsumerStdout()
+    {
+        if (m_buf) delete m_buf;
+    }
+
+    virtual Buffer* getBuffer()
+    {
+        return m_buf;
+    }
+
+    virtual void release( Buffer* buf )
+    {
+        fwrite(&(*buf)[0], 1, buf->getSize(), stdout);
         // TODO handle write errors
     }
+
+private:
+    Buffer* m_buf;
 };
 
 int main (int argc, char *args[])
 {
-    PCMWriterStdin writer;
-    PCMReaderStdout reader;
+    BufferProducerStdin writer;
+    BufferConsumerStdout reader;
     char dev[]="hw:1";
     ALSADuplex duplex( dev, writer, reader );
-    int err = duplex.run();
+    int err = duplex.run(10);
     return err;
 }
 
