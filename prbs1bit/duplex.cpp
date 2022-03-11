@@ -123,6 +123,44 @@ private:
     uint8_t m_sum;
 };
 
+int test_decimator( uint16_t M )
+{
+    BufferConsumerStdout reader;
+
+    while(1)
+    {
+        Buffer* cbuffer = reader.getBuffer();
+        char* buffer = &(*cbuffer)[0];
+        size_t nr=fread(buffer, 1, cbuffer->getCapacity(), stdin);
+        if (nr > 0) {
+            cbuffer->setSize(nr);
+            reader.release(cbuffer);
+        }
+        else break;
+    }
+    return 0;
+}
+
+int test_interleaver( uint16_t M )
+{
+    BufferProducerStdin writer;
+
+    Buffer* buffer = 0;
+    int len;
+    char* ptr;
+
+    while(1)
+    {
+        if (buffer) writer.release(buffer);
+        buffer = writer.getBuffer();
+        len = buffer->getSize();
+        ptr = &(*buffer)[0];
+        fwrite( ptr, 1, len, stdout);
+        if ( len <= 0 ) break;
+    }
+    return 0;
+}
+
 int simple96000()
 {
     BufferProducerStdin writer;
@@ -136,20 +174,31 @@ int simple96000()
 int main(int argc, char *argv[])
 {
     int opt;
-    int rate=96000;
-    while ((opt = getopt(argc, argv, "r:")) != -1) {
-       switch (opt) {
-       case 'r':
-           rate = atoi(optarg);
-           break;
-       default: /* '?' */
-           fprintf(stderr, "Usage: %s [-r rate]\n",
-                   argv[0]);
-           exit(EXIT_FAILURE);
+    int bitrate = 12288000;
+    int rate = 96000;
+    char test = 'n';
+    while ((opt = getopt(argc, argv, "r:t:")) != -1) {
+        switch (opt) {
+        case 'r':
+            rate = atoi(optarg);
+            break;
+        case 't':
+            test = optarg[0];
+            break;
+        default: /* '?' */
+            fprintf(stderr, "Usage: %s [-r rate] [-t <d|i>]\n",
+                    argv[0]);
+            exit(EXIT_FAILURE);
        }
     }
 
-    fprintf(stderr, "rate=%d; optind=%d\n", rate, optind);
+    int rate_factor = bitrate/rate;
+    double actual_rate = (double)bitrate/rate_factor;
+
+    fprintf(stderr, "Actual rate=%f\n", actual_rate);
+
+    if (test=='i') return test_interleaver( rate_factor );
+    if (test=='d') return test_decimator( rate_factor );
 
     // For now, ignore options and just run simple 96000 until the bufferring for rate conversion is understood.
     return simple96000();
