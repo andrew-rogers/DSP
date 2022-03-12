@@ -29,8 +29,9 @@
 class BufferProducerStdin : public BufferProvider
 {
 public:
-    BufferProducerStdin()
+    BufferProducerStdin( int M=16 )
     {
+        m_M = M;
         m_buf = 0;
         m_in = new uint8_t[1024];
         m_x1 = 0;
@@ -44,24 +45,24 @@ public:
 
     virtual Buffer* getBuffer()
     {
-        if (m_buf==0) m_buf = new Buffer(16384);
+        if (m_buf==0) m_buf = new Buffer(m_M*1024);
         char *out = &(*m_buf)[0];
         int len = fread(m_in, 1, 1024, stdin);
         // TODO handle read errors
         
-        const float scale=8.0/(15.0*256);
+        const float scale=8.0/((m_M-1)*256);
         for (size_t i=0; i<len; i++)
         {
-            uint16_t x = m_in[i];
-            for (uint8_t cnt=0; cnt<16; cnt++)
+            uint32_t x = m_in[i];
+            for (uint8_t cnt=0; cnt<m_M; cnt++)
             {
-                float y = (15-cnt)*m_x1 + cnt*x; // Linear interpolation
-                out[i*16+cnt] = int8.sample(ds.sample(y*scale));
+                float y = (m_M-1-cnt)*m_x1 + cnt*x; // Linear interpolation
+                out[i*m_M+cnt] = int8.sample(ds.sample(y*scale));
             }
             m_x1 = x;
         }
 
-        m_buf->setSize(len*16);
+        m_buf->setSize(len*m_M);
 
         return m_buf;
     }
@@ -71,21 +72,24 @@ public:
     }
 
 private:
+    int m_M;
     Int8 int8;
     DeltaSigma ds;
     Buffer* m_buf;
     uint8_t* m_in;
-    uint16_t m_x1;
+    uint32_t m_x1;
 };
 
 class BufferConsumerStdout : public BufferProvider
 {
 public:
-    BufferConsumerStdout()
+    BufferConsumerStdout( int M=16 )
     {
-        m_buf = new Buffer(16384);
+        m_M = M;
+        m_buf = new Buffer(m_M*1024);
         m_cnt = 0;
         m_sum = 0;
+        m_scale = 32.0/M;
     }
 
     ~BufferConsumerStdout()
@@ -104,11 +108,12 @@ public:
         {
             m_sum += dec8.sample((*buf)[i]);
             m_cnt++;
-            if (m_cnt>=16)
+            if (m_cnt>=m_M)
             {
-                if (m_sum<128) m_sum *= 2;
-                else m_sum=255;
-                fwrite(&m_sum, 1, 1, stdout);
+                m_sum = m_sum * m_scale;
+                uint8_t y = (uint8_t)m_sum;
+                if (m_sum>255) y=255;
+                fwrite(&y, 1, 1, stdout);
                 m_cnt=0;
                 m_sum = 0;
             }
@@ -117,15 +122,17 @@ public:
     }
 
 private:
+    int m_M;
     Dec8 dec8;
     Buffer* m_buf;
     size_t m_cnt;
-    uint8_t m_sum;
+    uint32_t m_sum;
+    float m_scale;
 };
 
 int test_decimator( uint16_t M )
 {
-    BufferConsumerStdout reader;
+    BufferConsumerStdout reader( M );
 
     while(1)
     {
@@ -143,7 +150,7 @@ int test_decimator( uint16_t M )
 
 int test_interleaver( uint16_t M )
 {
-    BufferProducerStdin writer;
+    BufferProducerStdin writer( M );
 
     Buffer* buffer = 0;
     int len;
@@ -161,10 +168,10 @@ int test_interleaver( uint16_t M )
     return 0;
 }
 
-int simple96000()
+int duplex_run( int M )
 {
-    BufferProducerStdin writer;
-    BufferConsumerStdout reader;
+    BufferProducerStdin writer( M );
+    BufferConsumerStdout reader( M );
     char dev[]="hw:1";
     ALSADuplex duplex( dev, writer, reader );
     int err = duplex.run(10);
@@ -174,7 +181,7 @@ int simple96000()
 int main(int argc, char *argv[])
 {
     int opt;
-    int bitrate = 12288000;
+    int byterate = 12288000/8;
     int rate = 96000;
     char test = 'n';
     while ((opt = getopt(argc, argv, "r:t:")) != -1) {
@@ -192,15 +199,14 @@ int main(int argc, char *argv[])
        }
     }
 
-    int rate_factor = bitrate/rate;
-    double actual_rate = (double)bitrate/rate_factor;
+    int rate_factor = byterate/rate;
+    double actual_rate = (double)byterate/rate_factor;
 
     fprintf(stderr, "Actual rate=%f\n", actual_rate);
 
     if (test=='i') return test_interleaver( rate_factor );
     if (test=='d') return test_decimator( rate_factor );
 
-    // For now, ignore options and just run simple 96000 until the bufferring for rate conversion is understood.
-    return simple96000();
+    return duplex_run( rate_factor );
 }
 
