@@ -116,7 +116,7 @@ int ALSADuplex::playback()
 {
     if( len==0 ) {
         if (m_pbuffer) m_writer->release(m_pbuffer);
-        Buffer* m_pbuffer = m_writer->getBuffer();
+        m_pbuffer = m_writer->getBuffer();
         len = m_pbuffer->getSize();
         ptr = &(*m_pbuffer)[0];
         if ( len <= 0 ) m_done=true;
