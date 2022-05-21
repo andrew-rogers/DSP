@@ -1,0 +1,40 @@
+AW{"type":"awcppwasm","id":"mk","hidden":true}
+
+CXXFLAGS += -I../..
+OBJS += ../../FractionalResampler.o
+
+AW{"type":"awcppwasm","id":"globals","hidden":true}
+
+#include "FractionalResampler.h"
+#include "LineReader.h"
+
+typedef AwVector<double> vec_t;
+
+AW{"type":"mono","id":"params"}
+Ft: 1046.5022612023945
+Fs1: 44100
+Fs2: 8000
+N: 200 
+
+AW{"type":"awcppwasm","inputs":["params"]}
+
+    Parameters params("params");
+    double Ft = params["Ft"][0];
+    double Fs1 = params["Fs1"][0];
+    double Fs2 = params["Fs2"][0];
+    double N = params["N"][0];
+    
+    auto t=linspace(0,(N-1)/Fs1,N);
+    auto y=sin(2*PI*Ft*t);
+    
+    plot(1000*t,y).name(to_string(int(Fs1))+"Hz");
+    xlabel("time (ms)");
+    
+    FractionalResampler fr(Fs2, Fs1);
+    
+    vec_t y2(N*2*Fs2/Fs1); // Twice the required size, more than allow for rounding errors.
+    
+    size_t M = fr.resample(&y[0], y.size(), &y2[0]);
+    y2.resize(M);
+    
+    plot(1000*Fs1/Fs2*t,y2).name(to_string(int(Fs2))+"Hz");
